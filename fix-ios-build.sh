@@ -19,16 +19,17 @@ rm -rf build
 rm -rf Pods
 rm -rf Podfile.lock
 rm -rf ~/Library/Developer/Xcode/DerivedData/*
-
-echo "📲 Reinstalling CocoaPods dependencies..."
 pod deintegrate || true
-pod install
-
 cd ..
 
-echo "🔄 Cleaning node modules and reinstalling..."
+echo "🔄 Installing node modules first..."
 rm -rf node_modules
 npm install
+
+echo "📲 Now installing CocoaPods dependencies..."
+cd ios
+pod install
+cd ..
 
 echo "✅ Cleanup complete!"
 echo ""
