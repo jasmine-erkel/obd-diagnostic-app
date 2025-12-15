@@ -34,7 +34,11 @@
 		<true/>
 	</dict>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string></string>
+	<string>This app uses your location to associate diagnostic reports with vehicle location data.</string>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>This app requires Bluetooth to connect to your OBD-II adapter for vehicle diagnostics.</string>
+	<key>NSBluetoothPeripheralUsageDescription</key>
+	<string>This app requires Bluetooth to connect to your OBD-II adapter for vehicle diagnostics.</string>
 	<key>RCTNewArchEnabled</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>
