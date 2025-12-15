@@ -14,6 +14,7 @@ function App() {
       <View style={styles.content}>
         <Text style={styles.title}>🚗 OBD-II Diagnostic App</Text>
         <Text style={styles.subtitle}>Hello from Jasmine and Joshua!</Text>
+        <Text style={styles.subtitle}>wassup my brodaas</Text>
         <Text style={styles.message}>Ready to start building! 🚀</Text>
       </View>
     </SafeAreaView>
