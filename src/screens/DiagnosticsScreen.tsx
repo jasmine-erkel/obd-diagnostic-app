@@ -1,40 +1,59 @@
-import React, {useEffect} from 'react';
-import {View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert} from 'react-native';
+import React, {useState, useEffect} from 'react';
+import {View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Modal, FlatList, ActivityIndicator, Switch} from 'react-native';
 import {colors, spacing, typography, borderRadius, shadows} from '../constants/theme';
 import {DiagnosticsScreenProps} from '../navigation/types';
-import {getErrorCodeDetails} from '../constants/obdCodes';
+import {getErrorCodeDetails, MOCK_LIVE_DATA} from '../constants/obdCodes';
 import {useAI} from '../context/AIContext';
-import {useOBD} from '../context/OBDContext';
 import {useNavigation} from '@react-navigation/native';
 import {ErrorCode} from '../types/vehicle';
+import {bluetoothService, OBDDevice, OBDData} from '../services/bluetoothService';
+import {mockOBDService} from '../services/mockOBDService';
 
 export const DiagnosticsScreen: React.FC<DiagnosticsScreenProps> = () => {
   const {sendMessage} = useAI();
   const navigation = useNavigation();
-  const {
-    connected,
-    engineRunning,
-    liveData,
-    errorCodes: obdErrorCodes,
-    connect,
-    disconnect,
-    refreshErrorCodes,
-    clearErrorCodes,
-    startEngine,
-    stopEngine,
-    checkServerConnection,
-  } = useOBD();
 
-  // Convert OBD error codes to app format
-  const errorCodes: ErrorCode[] = obdErrorCodes.map(obdCode => {
-    const details = getErrorCodeDetails(obdCode.code);
-    return details || {
-      code: obdCode.code,
-      description: 'Unknown error code',
-      severity: 'warning' as const,
-      status: 'active' as const,
+  // Mode selection
+  const [useMockMode, setUseMockMode] = useState(true); // Start with mock mode for easy testing
+  const [isDriving, setIsDriving] = useState(false); // Track driving simulation state
+
+  // Bluetooth state
+  const [isConnected, setIsConnected] = useState(false);
+  const [isScanning, setIsScanning] = useState(false);
+  const [discoveredDevices, setDiscoveredDevices] = useState<OBDDevice[]>([]);
+  const [showDeviceModal, setShowDeviceModal] = useState(false);
+  const [liveData, setLiveData] = useState<OBDData>({});
+
+  // Error codes (will be from OBD device when connected, otherwise mock)
+  const [errorCodes, setErrorCodes] = useState<ErrorCode[]>([
+    getErrorCodeDetails('P0420')!,
+    getErrorCodeDetails('P0171')!,
+    getErrorCodeDetails('P0301')!,
+  ]);
+
+  // Poll live data when connected
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+
+    if (isConnected) {
+      interval = setInterval(async () => {
+        try {
+          const data = useMockMode
+            ? await mockOBDService.readLiveData()
+            : await bluetoothService.readLiveData();
+          setLiveData(data);
+        } catch (error) {
+          console.error('Error reading live data:', error);
+        }
+      }, 2000); // Update every 2 seconds
+    }
+
+    return () => {
+      if (interval) {
+        clearInterval(interval);
+      }
     };
-  });
+  }, [isConnected, useMockMode]);
 
   const getSeverityColor = (severity: string) => {
     switch (severity) {
@@ -58,7 +77,9 @@ export const DiagnosticsScreen: React.FC<DiagnosticsScreenProps> = () => {
         {
           text: 'Ask AI',
           onPress: async () => {
+            // Navigate to AI Assistant tab and send message
             navigation.navigate('AIAssistantTab' as any);
+            // Small delay to allow navigation to complete
             setTimeout(async () => {
               await sendMessage(`What does error code ${errorCode.code} mean and how can I fix it?`, errorCode.code);
             }, 500);
@@ -69,130 +90,224 @@ export const DiagnosticsScreen: React.FC<DiagnosticsScreenProps> = () => {
   };
 
   const handleConnectOBD = async () => {
-    // Check if server is reachable first
-    const serverReachable = await checkServerConnection();
-
-    if (!serverReachable) {
+    if (isConnected) {
+      // Disconnect
       Alert.alert(
-        'Server Not Found',
-        'Cannot reach the mock OBD server.\n\nMake sure:\n1. Mock server is running (npm start in mock-obd-server/)\n2. Server URL is correct in src/services/obdService.ts\n3. Your phone and Mac are on the same network',
-        [{text: 'OK'}],
+        'Disconnect Device',
+        `Are you sure you want to disconnect from the ${useMockMode ? 'mock' : 'OBD-II'} device?`,
+        [
+          {text: 'Cancel', style: 'cancel'},
+          {
+            text: 'Disconnect',
+            style: 'destructive',
+            onPress: async () => {
+              if (!useMockMode) {
+                await bluetoothService.disconnect();
+              } else {
+                mockOBDService.stopDriving();
+              }
+              setIsConnected(false);
+              setIsDriving(false);
+              setLiveData({});
+              Alert.alert('Disconnected', `${useMockMode ? 'Mock' : 'OBD-II'} device disconnected successfully`);
+            },
+          },
+        ],
       );
-      return;
+    } else {
+      // Connect
+      if (useMockMode) {
+        // Mock mode - instant connection
+        setIsConnected(true);
+        mockOBDService.startEngine();
+        Alert.alert('Connected', 'Mock OBD-II device connected. Switch "Simulate Driving" to see dynamic data!');
+
+        // Read mock error codes
+        try {
+          const codes = await mockOBDService.readErrorCodes();
+          if (codes.length > 0) {
+            const errorCodeObjects = codes
+              .map(code => getErrorCodeDetails(code))
+              .filter((code): code is ErrorCode => code !== null);
+            setErrorCodes(errorCodeObjects);
+          } else {
+            setErrorCodes([]);
+          }
+        } catch (error) {
+          console.error('Error reading mock codes:', error);
+        }
+      } else {
+        // Real Bluetooth mode - scan for devices
+        setShowDeviceModal(true);
+        setDiscoveredDevices([]);
+        setIsScanning(true);
+
+        try {
+          await bluetoothService.scanForDevices(
+            (device) => {
+              setDiscoveredDevices(prev => {
+                // Avoid duplicates
+                if (!prev.find(d => d.id === device.id)) {
+                  return [...prev, device];
+                }
+                return prev;
+              });
+            },
+            10000, // Scan for 10 seconds
+          );
+        } catch (error) {
+          Alert.alert('Error', error instanceof Error ? error.message : 'Failed to scan for devices');
+        } finally {
+          setIsScanning(false);
+        }
+      }
     }
+  };
 
-    const result = await connect();
+  const handleDeviceSelect = async (device: OBDDevice) => {
+    setShowDeviceModal(false);
+    bluetoothService.stopScan();
+    setIsScanning(false);
 
-    if (result.success) {
-      Alert.alert('Connected', result.message, [
-        {text: 'OK'},
+    Alert.alert('Connecting', `Connecting to ${device.name}...`);
+
+    try {
+      const connected = await bluetoothService.connectToDevice(device.id);
+
+      if (connected) {
+        setIsConnected(true);
+        Alert.alert('Connected', `Successfully connected to ${device.name}`);
+
+        // Read error codes from device
+        try {
+          const codes = await bluetoothService.readErrorCodes();
+          if (codes.length > 0) {
+            const errorCodeObjects = codes
+              .map(code => getErrorCodeDetails(code))
+              .filter((code): code is ErrorCode => code !== null);
+            setErrorCodes(errorCodeObjects);
+          } else {
+            setErrorCodes([]);
+          }
+        } catch (error) {
+          console.error('Error reading codes:', error);
+        }
+      } else {
+        Alert.alert('Connection Failed', 'Could not connect to the device. Please try again.');
+      }
+    } catch (error) {
+      Alert.alert('Error', error instanceof Error ? error.message : 'Connection failed');
+    }
+  };
+
+  const handleClearCodes = () => {
+    Alert.alert(
+      'Clear Error Codes',
+      'This will clear all stored error codes. Are you sure?',
+      [
+        {text: 'Cancel', style: 'cancel'},
         {
-          text: 'Start Engine',
+          text: 'Clear',
+          style: 'destructive',
           onPress: async () => {
-            const engineResult = await startEngine();
-            if (!engineResult.success) {
-              Alert.alert('Error', engineResult.message);
+            if (isConnected) {
+              try {
+                const success = useMockMode
+                  ? await mockOBDService.clearErrorCodes()
+                  : await bluetoothService.clearErrorCodes();
+                if (success) {
+                  setErrorCodes([]);
+                  Alert.alert('Success', 'Error codes cleared successfully');
+                } else {
+                  Alert.alert('Error', 'Failed to clear error codes');
+                }
+              } catch (error) {
+                Alert.alert('Error', error instanceof Error ? error.message : 'Failed to clear codes');
+              }
+            } else {
+              // Not connected
+              setErrorCodes([]);
+              Alert.alert('Success', 'Error codes cleared');
             }
           },
         },
-      ]);
-    } else {
-      Alert.alert('Connection Failed', result.message);
-    }
-  };
-
-  const handleDisconnect = async () => {
-    Alert.alert('Disconnect', 'Disconnect from OBD device?', [
-      {text: 'Cancel', style: 'cancel'},
-      {
-        text: 'Disconnect',
-        style: 'destructive',
-        onPress: async () => {
-          await disconnect();
-        },
-      },
-    ]);
-  };
-
-  const handleClearCodes = async () => {
-    Alert.alert('Clear Error Codes', 'This will clear all stored error codes. Are you sure?', [
-      {text: 'Cancel', style: 'cancel'},
-      {
-        text: 'Clear',
-        style: 'destructive',
-        onPress: async () => {
-          const result = await clearErrorCodes();
-          if (result.success) {
-            Alert.alert('Success', 'Error codes cleared');
-          } else {
-            Alert.alert('Error', result.message);
-          }
-        },
-      },
-    ]);
-  };
-
-  const handleEngineToggle = async () => {
-    if (engineRunning) {
-      const result = await stopEngine();
-      if (!result.success) {
-        Alert.alert('Error', result.message);
-      }
-    } else {
-      const result = await startEngine();
-      if (!result.success) {
-        Alert.alert('Error', result.message);
-      }
-    }
+      ],
+    );
   };
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      {/* Connection Status */}
-      <View style={styles.statusCard}>
-        <View style={styles.statusHeader}>
-          <View>
-            <Text style={styles.statusLabel}>OBD-II Status</Text>
-            <View style={styles.statusRow}>
-              <View style={[styles.statusDot, {backgroundColor: connected ? colors.success : colors.textSecondary}]} />
-              <Text style={styles.statusText}>{connected ? 'Connected' : 'Not Connected'}</Text>
-            </View>
-            {connected && (
-              <View style={styles.statusRow}>
-                <View
-                  style={[styles.statusDot, {backgroundColor: engineRunning ? colors.success : colors.warning}]}
-                />
-                <Text style={styles.statusTextSmall}>
-                  Engine: {engineRunning ? 'Running' : 'Off'}
-                </Text>
-              </View>
-            )}
+      {/* Mode Selection */}
+      <View style={styles.modeCard}>
+        <Text style={styles.modeTitle}>Testing Mode</Text>
+
+        {/* Mock Mode Toggle */}
+        <View style={styles.toggleRow}>
+          <View style={styles.toggleInfo}>
+            <Text style={styles.toggleLabel}>Use Mock OBD Device</Text>
+            <Text style={styles.toggleSubtext}>
+              {useMockMode ? 'Testing with simulated data' : 'Connect to real Bluetooth device'}
+            </Text>
           </View>
+          <Switch
+            value={useMockMode}
+            onValueChange={(value) => {
+              if (isConnected) {
+                Alert.alert('Disconnect First', 'Please disconnect from the current device before changing modes.');
+              } else {
+                setUseMockMode(value);
+              }
+            }}
+            trackColor={{false: colors.textSecondary, true: colors.primary}}
+            thumbColor={colors.surface}
+          />
         </View>
 
-        {!connected ? (
-          <TouchableOpacity style={styles.connectButton} onPress={handleConnectOBD}>
-            <Text style={styles.connectButtonText}>Connect Device</Text>
-          </TouchableOpacity>
-        ) : (
-          <View style={styles.buttonRow}>
-            <TouchableOpacity
-              style={[styles.controlButton, styles.secondaryButton]}
-              onPress={handleEngineToggle}>
-              <Text style={styles.secondaryButtonText}>{engineRunning ? 'Stop' : 'Start'} Engine</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.controlButton, styles.dangerButton]} onPress={handleDisconnect}>
-              <Text style={styles.dangerButtonText}>Disconnect</Text>
-            </TouchableOpacity>
+        {/* Driving Simulation Toggle (only visible in mock mode when connected) */}
+        {useMockMode && isConnected && (
+          <View style={[styles.toggleRow, {marginTop: spacing.sm, borderTopWidth: 1, borderTopColor: colors.borderLight, paddingTop: spacing.sm}]}>
+            <View style={styles.toggleInfo}>
+              <Text style={styles.toggleLabel}>Simulate Driving</Text>
+              <Text style={styles.toggleSubtext}>
+                {isDriving ? 'Vehicle in motion (dynamic data)' : 'Vehicle at idle'}
+              </Text>
+            </View>
+            <Switch
+              value={isDriving}
+              onValueChange={(value) => {
+                setIsDriving(value);
+                if (value) {
+                  mockOBDService.startDriving();
+                } else {
+                  mockOBDService.stopDriving();
+                }
+              }}
+              trackColor={{false: colors.textSecondary, true: colors.success}}
+              thumbColor={colors.surface}
+            />
           </View>
         )}
+      </View>
+
+      {/* Connection Status */}
+      <View style={styles.statusCard}>
+        <Text style={styles.statusLabel}>OBD-II Status</Text>
+        <View style={styles.statusRow}>
+          <View style={[styles.statusDot, {backgroundColor: isConnected ? colors.success : colors.textSecondary}]} />
+          <Text style={styles.statusText}>
+            {isConnected ? `Connected ${useMockMode ? '(Mock)' : '(Real)'}` : 'Not Connected'}
+          </Text>
+        </View>
+        <TouchableOpacity style={styles.connectButton} onPress={handleConnectOBD}>
+          <Text style={styles.connectButtonText}>{isConnected ? 'Disconnect' : 'Connect Device'}</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Error Codes Section */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Error Codes ({errorCodes.length})</Text>
-          {connected && errorCodes.length > 0 && (
+          {errorCodes.length > 0 && (
             <TouchableOpacity onPress={handleClearCodes}>
               <Text style={styles.clearButton}>Clear All</Text>
             </TouchableOpacity>
@@ -222,12 +337,8 @@ export const DiagnosticsScreen: React.FC<DiagnosticsScreenProps> = () => {
           ))
         ) : (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyStateText}>
-              {connected ? 'No error codes detected' : 'Connect to scan for errors'}
-            </Text>
-            <Text style={styles.emptyStateSubtext}>
-              {connected ? '✅ Your vehicle is running clean!' : 'Connect your OBD-II device to scan for issues'}
-            </Text>
+            <Text style={styles.emptyStateText}>No error codes detected</Text>
+            <Text style={styles.emptyStateSubtext}>Connect your OBD-II device to scan for issues</Text>
           </View>
         )}
       </View>
@@ -239,66 +350,120 @@ export const DiagnosticsScreen: React.FC<DiagnosticsScreenProps> = () => {
           <View style={styles.dataCardWrapper}>
             <View style={styles.dataCard}>
               <Text style={styles.dataLabel}>RPM</Text>
-              <Text style={styles.dataValue}>{liveData?.rpm.toLocaleString() || '---'}</Text>
+              <Text style={styles.dataValue}>{isConnected && liveData.rpm !== undefined ? Math.round(liveData.rpm) : MOCK_LIVE_DATA.rpm.value}</Text>
               <Text style={styles.dataUnit}>rpm</Text>
             </View>
           </View>
-
           <View style={styles.dataCardWrapper}>
             <View style={styles.dataCard}>
               <Text style={styles.dataLabel}>Speed</Text>
-              <Text style={styles.dataValue}>{liveData?.speed || '---'}</Text>
-              <Text style={styles.dataUnit}>mph</Text>
+              <Text style={styles.dataValue}>{isConnected && liveData.speed !== undefined ? Math.round(liveData.speed) : MOCK_LIVE_DATA.speed.value}</Text>
+              <Text style={styles.dataUnit}>km/h</Text>
             </View>
           </View>
-
           <View style={styles.dataCardWrapper}>
             <View style={styles.dataCard}>
               <Text style={styles.dataLabel}>Coolant Temp</Text>
-              <Text style={styles.dataValue}>{liveData?.coolantTemp || '---'}</Text>
-              <Text style={styles.dataUnit}>°F</Text>
+              <Text style={styles.dataValue}>{isConnected && liveData.coolantTemp !== undefined ? Math.round(liveData.coolantTemp) : MOCK_LIVE_DATA.coolantTemp.value}</Text>
+              <Text style={styles.dataUnit}>°C</Text>
             </View>
           </View>
-
+          <View style={styles.dataCardWrapper}>
+            <View style={styles.dataCard}>
+              <Text style={styles.dataLabel}>Throttle Pos</Text>
+              <Text style={styles.dataValue}>{isConnected && liveData.throttlePos !== undefined ? Math.round(liveData.throttlePos) : MOCK_LIVE_DATA.throttlePosition.value}</Text>
+              <Text style={styles.dataUnit}>%</Text>
+            </View>
+          </View>
           <View style={styles.dataCardWrapper}>
             <View style={styles.dataCard}>
               <Text style={styles.dataLabel}>Fuel Level</Text>
-              <Text style={styles.dataValue}>{liveData?.fuelLevel || '---'}</Text>
+              <Text style={styles.dataValue}>{isConnected && liveData.fuelLevel !== undefined ? Math.round(liveData.fuelLevel) : MOCK_LIVE_DATA.fuelLevel.value}</Text>
               <Text style={styles.dataUnit}>%</Text>
             </View>
           </View>
-
           <View style={styles.dataCardWrapper}>
             <View style={styles.dataCard}>
-              <Text style={styles.dataLabel}>Engine Load</Text>
-              <Text style={styles.dataValue}>{liveData?.engineLoad || '---'}</Text>
-              <Text style={styles.dataUnit}>%</Text>
-            </View>
-          </View>
-
-          <View style={styles.dataCardWrapper}>
-            <View style={styles.dataCard}>
-              <Text style={styles.dataLabel}>Throttle</Text>
-              <Text style={styles.dataValue}>{liveData?.throttlePosition || '---'}</Text>
-              <Text style={styles.dataUnit}>%</Text>
+              <Text style={styles.dataLabel}>Intake Temp</Text>
+              <Text style={styles.dataValue}>{isConnected && liveData.intakeTemp !== undefined ? Math.round(liveData.intakeTemp) : MOCK_LIVE_DATA.intakeTemp.value}</Text>
+              <Text style={styles.dataUnit}>°C</Text>
             </View>
           </View>
         </View>
-
-        {!connected && (
+        {!isConnected && (
           <View style={styles.infoBox}>
-            <Text style={styles.infoText}>📡 Connect OBD-II device to see real-time vehicle data</Text>
-          </View>
-        )}
-
-        {connected && engineRunning && (
-          <View style={[styles.infoBox, {backgroundColor: colors.success + '15', borderColor: colors.success + '30'}]}>
-            <Text style={[styles.infoText, {color: colors.success}]}>
-              ✅ Receiving live data from mock OBD server
+            <Text style={styles.infoText}>
+              📡 Connect OBD-II device to see real-time vehicle data
             </Text>
           </View>
         )}
       </View>
+
+      {/* Chart Placeholder */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Performance Charts</Text>
+        <View style={styles.chartPlaceholder}>
+          <Text style={styles.chartPlaceholderText}>📊</Text>
+          <Text style={styles.chartPlaceholderLabel}>RPM & Speed Charts</Text>
+          <Text style={styles.chartPlaceholderSubtext}>
+            Connect to OBD-II to see live data visualization
+          </Text>
+        </View>
+      </View>
+
+      {/* Device Scan Modal */}
+      <Modal
+        visible={showDeviceModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => {
+          bluetoothService.stopScan();
+          setShowDeviceModal(false);
+          setIsScanning(false);
+        }}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Select OBD-II Device</Text>
+
+            {isScanning && (
+              <View style={styles.scanningContainer}>
+                <ActivityIndicator size="large" color={colors.primary} />
+                <Text style={styles.scanningText}>Scanning for devices...</Text>
+              </View>
+            )}
+
+            <FlatList
+              data={discoveredDevices}
+              keyExtractor={(item) => item.id}
+              renderItem={({item}) => (
+                <TouchableOpacity
+                  style={styles.deviceItem}
+                  onPress={() => handleDeviceSelect(item)}>
+                  <Text style={styles.deviceName}>{item.name || 'Unknown Device'}</Text>
+                  <Text style={styles.deviceId}>{item.id}</Text>
+                  {item.rssi && <Text style={styles.deviceRssi}>Signal: {item.rssi} dBm</Text>}
+                </TouchableOpacity>
+              )}
+              ListEmptyComponent={
+                !isScanning ? (
+                  <Text style={styles.emptyText}>No devices found. Make sure your OBD-II device is powered on.</Text>
+                ) : null
+              }
+              style={styles.deviceList}
+            />
+
+            <TouchableOpacity
+              style={styles.cancelButton}
+              onPress={() => {
+                bluetoothService.stopScan();
+                setShowDeviceModal(false);
+                setIsScanning(false);
+              }}>
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 };
@@ -312,15 +477,44 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     paddingBottom: 100,
   },
+  modeCard: {
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+    ...shadows.sm,
+  },
+  modeTitle: {
+    fontSize: typography.fontSize.lg,
+    fontWeight: typography.fontWeight.bold,
+    color: colors.text,
+    marginBottom: spacing.md,
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  toggleInfo: {
+    flex: 1,
+    marginRight: spacing.md,
+  },
+  toggleLabel: {
+    fontSize: typography.fontSize.md,
+    fontWeight: typography.fontWeight.semibold,
+    color: colors.text,
+    marginBottom: spacing.xs,
+  },
+  toggleSubtext: {
+    fontSize: typography.fontSize.sm,
+    color: colors.textSecondary,
+  },
   statusCard: {
     backgroundColor: colors.surface,
     borderRadius: borderRadius.md,
     padding: spacing.md,
     marginBottom: spacing.lg,
     ...shadows.sm,
-  },
-  statusHeader: {
-    marginBottom: spacing.md,
   },
   statusLabel: {
     fontSize: typography.fontSize.sm,
@@ -330,32 +524,19 @@ const styles = StyleSheet.create({
   statusRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: spacing.xs,
+    marginBottom: spacing.md,
   },
   statusDot: {
     width: 10,
     height: 10,
     borderRadius: 5,
+    backgroundColor: colors.textSecondary,
     marginRight: spacing.xs,
   },
   statusText: {
     fontSize: typography.fontSize.md,
     color: colors.text,
     fontWeight: typography.fontWeight.semibold,
-  },
-  statusTextSmall: {
-    fontSize: typography.fontSize.sm,
-    color: colors.text,
-  },
-  buttonRow: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-  },
-  controlButton: {
-    flex: 1,
-    borderRadius: borderRadius.md,
-    padding: spacing.sm,
-    alignItems: 'center',
   },
   connectButton: {
     backgroundColor: colors.primary,
@@ -364,22 +545,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   connectButtonText: {
-    fontSize: typography.fontSize.md,
-    fontWeight: typography.fontWeight.semibold,
-    color: colors.surface,
-  },
-  secondaryButton: {
-    backgroundColor: colors.secondary,
-  },
-  secondaryButtonText: {
-    fontSize: typography.fontSize.md,
-    fontWeight: typography.fontWeight.semibold,
-    color: colors.surface,
-  },
-  dangerButton: {
-    backgroundColor: colors.error,
-  },
-  dangerButtonText: {
     fontSize: typography.fontSize.md,
     fontWeight: typography.fontWeight.semibold,
     color: colors.surface,
@@ -500,5 +665,103 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSize.xs,
     color: colors.textSecondary,
     marginTop: spacing.xs,
+  },
+  chartPlaceholder: {
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.md,
+    padding: spacing.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 200,
+    ...shadows.sm,
+  },
+  chartPlaceholderText: {
+    fontSize: 48,
+    marginBottom: spacing.sm,
+  },
+  chartPlaceholderLabel: {
+    fontSize: typography.fontSize.md,
+    fontWeight: typography.fontWeight.semibold,
+    color: colors.text,
+    marginBottom: spacing.xs,
+  },
+  chartPlaceholderSubtext: {
+    fontSize: typography.fontSize.sm,
+    color: colors.textSecondary,
+    textAlign: 'center',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.lg,
+    padding: spacing.lg,
+    width: '85%',
+    maxHeight: '70%',
+    ...shadows.lg,
+  },
+  modalTitle: {
+    fontSize: typography.fontSize.xl,
+    fontWeight: typography.fontWeight.bold,
+    color: colors.text,
+    marginBottom: spacing.md,
+    textAlign: 'center',
+  },
+  scanningContainer: {
+    alignItems: 'center',
+    padding: spacing.lg,
+  },
+  scanningText: {
+    fontSize: typography.fontSize.md,
+    color: colors.textSecondary,
+    marginTop: spacing.md,
+  },
+  deviceList: {
+    maxHeight: 300,
+  },
+  deviceItem: {
+    backgroundColor: colors.background,
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.primary + '20',
+  },
+  deviceName: {
+    fontSize: typography.fontSize.md,
+    fontWeight: typography.fontWeight.semibold,
+    color: colors.text,
+    marginBottom: spacing.xs,
+  },
+  deviceId: {
+    fontSize: typography.fontSize.sm,
+    color: colors.textSecondary,
+    marginBottom: spacing.xs,
+  },
+  deviceRssi: {
+    fontSize: typography.fontSize.xs,
+    color: colors.info,
+  },
+  emptyText: {
+    fontSize: typography.fontSize.sm,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    padding: spacing.lg,
+  },
+  cancelButton: {
+    backgroundColor: colors.error,
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
+    alignItems: 'center',
+    marginTop: spacing.md,
+  },
+  cancelButtonText: {
+    fontSize: typography.fontSize.md,
+    fontWeight: typography.fontWeight.semibold,
+    color: colors.surface,
   },
 });
