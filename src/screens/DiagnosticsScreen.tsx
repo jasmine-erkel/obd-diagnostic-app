@@ -1,22 +1,40 @@
-import React, {useState} from 'react';
+import React, {useEffect} from 'react';
 import {View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert} from 'react-native';
 import {colors, spacing, typography, borderRadius, shadows} from '../constants/theme';
 import {DiagnosticsScreenProps} from '../navigation/types';
-import {getErrorCodeDetails, MOCK_LIVE_DATA} from '../constants/obdCodes';
+import {getErrorCodeDetails} from '../constants/obdCodes';
 import {useAI} from '../context/AIContext';
+import {useOBD} from '../context/OBDContext';
 import {useNavigation} from '@react-navigation/native';
 import {ErrorCode} from '../types/vehicle';
 
 export const DiagnosticsScreen: React.FC<DiagnosticsScreenProps> = () => {
   const {sendMessage} = useAI();
   const navigation = useNavigation();
+  const {
+    connected,
+    engineRunning,
+    liveData,
+    errorCodes: obdErrorCodes,
+    connect,
+    disconnect,
+    refreshErrorCodes,
+    clearErrorCodes,
+    startEngine,
+    stopEngine,
+    checkServerConnection,
+  } = useOBD();
 
-  // Mock error codes from OBD scanner (in real app, this would come from OBD device)
-  const [errorCodes] = useState<ErrorCode[]>([
-    getErrorCodeDetails('P0420')!,
-    getErrorCodeDetails('P0171')!,
-    getErrorCodeDetails('P0301')!,
-  ]);
+  // Convert OBD error codes to app format
+  const errorCodes: ErrorCode[] = obdErrorCodes.map(obdCode => {
+    const details = getErrorCodeDetails(obdCode.code);
+    return details || {
+      code: obdCode.code,
+      description: 'Unknown error code',
+      severity: 'warning' as const,
+      status: 'active' as const,
+    };
+  });
 
   const getSeverityColor = (severity: string) => {
     switch (severity) {
@@ -40,9 +58,7 @@ export const DiagnosticsScreen: React.FC<DiagnosticsScreenProps> = () => {
         {
           text: 'Ask AI',
           onPress: async () => {
-            // Navigate to AI Assistant tab and send message
             navigation.navigate('AIAssistantTab' as any);
-            // Small delay to allow navigation to complete
             setTimeout(async () => {
               await sendMessage(`What does error code ${errorCode.code} mean and how can I fix it?`, errorCode.code);
             }, 500);
@@ -52,49 +68,131 @@ export const DiagnosticsScreen: React.FC<DiagnosticsScreenProps> = () => {
     );
   };
 
-  const handleConnectOBD = () => {
-    Alert.alert(
-      'Connect OBD-II Device',
-      'OBD-II Bluetooth connection feature coming soon!\n\nThis feature will allow you to:\n• Read real-time error codes\n• Monitor live engine data\n• Clear diagnostic codes\n• View freeze frame data',
-    );
-  };
+  const handleConnectOBD = async () => {
+    // Check if server is reachable first
+    const serverReachable = await checkServerConnection();
 
-  const handleClearCodes = () => {
-    Alert.alert(
-      'Clear Error Codes',
-      'This will clear all stored error codes. Are you sure?',
-      [
-        {text: 'Cancel', style: 'cancel'},
+    if (!serverReachable) {
+      Alert.alert(
+        'Server Not Found',
+        'Cannot reach the mock OBD server.\n\nMake sure:\n1. Mock server is running (npm start in mock-obd-server/)\n2. Server URL is correct in src/services/obdService.ts\n3. Your phone and Mac are on the same network',
+        [{text: 'OK'}],
+      );
+      return;
+    }
+
+    const result = await connect();
+
+    if (result.success) {
+      Alert.alert('Connected', result.message, [
+        {text: 'OK'},
         {
-          text: 'Clear',
-          style: 'destructive',
-          onPress: () => {
-            Alert.alert('Success', 'Error codes cleared (demo mode)');
+          text: 'Start Engine',
+          onPress: async () => {
+            const engineResult = await startEngine();
+            if (!engineResult.success) {
+              Alert.alert('Error', engineResult.message);
+            }
           },
         },
-      ],
-    );
+      ]);
+    } else {
+      Alert.alert('Connection Failed', result.message);
+    }
+  };
+
+  const handleDisconnect = async () => {
+    Alert.alert('Disconnect', 'Disconnect from OBD device?', [
+      {text: 'Cancel', style: 'cancel'},
+      {
+        text: 'Disconnect',
+        style: 'destructive',
+        onPress: async () => {
+          await disconnect();
+        },
+      },
+    ]);
+  };
+
+  const handleClearCodes = async () => {
+    Alert.alert('Clear Error Codes', 'This will clear all stored error codes. Are you sure?', [
+      {text: 'Cancel', style: 'cancel'},
+      {
+        text: 'Clear',
+        style: 'destructive',
+        onPress: async () => {
+          const result = await clearErrorCodes();
+          if (result.success) {
+            Alert.alert('Success', 'Error codes cleared');
+          } else {
+            Alert.alert('Error', result.message);
+          }
+        },
+      },
+    ]);
+  };
+
+  const handleEngineToggle = async () => {
+    if (engineRunning) {
+      const result = await stopEngine();
+      if (!result.success) {
+        Alert.alert('Error', result.message);
+      }
+    } else {
+      const result = await startEngine();
+      if (!result.success) {
+        Alert.alert('Error', result.message);
+      }
+    }
   };
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       {/* Connection Status */}
       <View style={styles.statusCard}>
-        <Text style={styles.statusLabel}>OBD-II Status</Text>
-        <View style={styles.statusRow}>
-          <View style={styles.statusDot} />
-          <Text style={styles.statusText}>Not Connected</Text>
+        <View style={styles.statusHeader}>
+          <View>
+            <Text style={styles.statusLabel}>OBD-II Status</Text>
+            <View style={styles.statusRow}>
+              <View style={[styles.statusDot, {backgroundColor: connected ? colors.success : colors.textSecondary}]} />
+              <Text style={styles.statusText}>{connected ? 'Connected' : 'Not Connected'}</Text>
+            </View>
+            {connected && (
+              <View style={styles.statusRow}>
+                <View
+                  style={[styles.statusDot, {backgroundColor: engineRunning ? colors.success : colors.warning}]}
+                />
+                <Text style={styles.statusTextSmall}>
+                  Engine: {engineRunning ? 'Running' : 'Off'}
+                </Text>
+              </View>
+            )}
+          </View>
         </View>
-        <TouchableOpacity style={styles.connectButton} onPress={handleConnectOBD}>
-          <Text style={styles.connectButtonText}>Connect Device</Text>
-        </TouchableOpacity>
+
+        {!connected ? (
+          <TouchableOpacity style={styles.connectButton} onPress={handleConnectOBD}>
+            <Text style={styles.connectButtonText}>Connect Device</Text>
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.buttonRow}>
+            <TouchableOpacity
+              style={[styles.controlButton, styles.secondaryButton]}
+              onPress={handleEngineToggle}>
+              <Text style={styles.secondaryButtonText}>{engineRunning ? 'Stop' : 'Start'} Engine</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.controlButton, styles.dangerButton]} onPress={handleDisconnect}>
+              <Text style={styles.dangerButtonText}>Disconnect</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
 
       {/* Error Codes Section */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Error Codes ({errorCodes.length})</Text>
-          {errorCodes.length > 0 && (
+          {connected && errorCodes.length > 0 && (
             <TouchableOpacity onPress={handleClearCodes}>
               <Text style={styles.clearButton}>Clear All</Text>
             </TouchableOpacity>
@@ -124,8 +222,12 @@ export const DiagnosticsScreen: React.FC<DiagnosticsScreenProps> = () => {
           ))
         ) : (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyStateText}>No error codes detected</Text>
-            <Text style={styles.emptyStateSubtext}>Connect your OBD-II device to scan for issues</Text>
+            <Text style={styles.emptyStateText}>
+              {connected ? 'No error codes detected' : 'Connect to scan for errors'}
+            </Text>
+            <Text style={styles.emptyStateSubtext}>
+              {connected ? '✅ Your vehicle is running clean!' : 'Connect your OBD-II device to scan for issues'}
+            </Text>
           </View>
         )}
       </View>
@@ -134,33 +236,68 @@ export const DiagnosticsScreen: React.FC<DiagnosticsScreenProps> = () => {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Live Data</Text>
         <View style={styles.dataGrid}>
-          {Object.entries(MOCK_LIVE_DATA).slice(0, 6).map(([key, data]) => (
-            <View key={key} style={styles.dataCardWrapper}>
-              <View style={styles.dataCard}>
-                <Text style={styles.dataLabel}>{data.label}</Text>
-                <Text style={styles.dataValue}>{data.value}</Text>
-                <Text style={styles.dataUnit}>{data.unit}</Text>
-              </View>
+          <View style={styles.dataCardWrapper}>
+            <View style={styles.dataCard}>
+              <Text style={styles.dataLabel}>RPM</Text>
+              <Text style={styles.dataValue}>{liveData?.rpm.toLocaleString() || '---'}</Text>
+              <Text style={styles.dataUnit}>rpm</Text>
             </View>
-          ))}
-        </View>
-        <View style={styles.infoBox}>
-          <Text style={styles.infoText}>
-            📡 Connect OBD-II device to see real-time vehicle data
-          </Text>
-        </View>
-      </View>
+          </View>
 
-      {/* Chart Placeholder */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Performance Charts</Text>
-        <View style={styles.chartPlaceholder}>
-          <Text style={styles.chartPlaceholderText}>📊</Text>
-          <Text style={styles.chartPlaceholderLabel}>RPM & Speed Charts</Text>
-          <Text style={styles.chartPlaceholderSubtext}>
-            Connect to OBD-II to see live data visualization
-          </Text>
+          <View style={styles.dataCardWrapper}>
+            <View style={styles.dataCard}>
+              <Text style={styles.dataLabel}>Speed</Text>
+              <Text style={styles.dataValue}>{liveData?.speed || '---'}</Text>
+              <Text style={styles.dataUnit}>mph</Text>
+            </View>
+          </View>
+
+          <View style={styles.dataCardWrapper}>
+            <View style={styles.dataCard}>
+              <Text style={styles.dataLabel}>Coolant Temp</Text>
+              <Text style={styles.dataValue}>{liveData?.coolantTemp || '---'}</Text>
+              <Text style={styles.dataUnit}>°F</Text>
+            </View>
+          </View>
+
+          <View style={styles.dataCardWrapper}>
+            <View style={styles.dataCard}>
+              <Text style={styles.dataLabel}>Fuel Level</Text>
+              <Text style={styles.dataValue}>{liveData?.fuelLevel || '---'}</Text>
+              <Text style={styles.dataUnit}>%</Text>
+            </View>
+          </View>
+
+          <View style={styles.dataCardWrapper}>
+            <View style={styles.dataCard}>
+              <Text style={styles.dataLabel}>Engine Load</Text>
+              <Text style={styles.dataValue}>{liveData?.engineLoad || '---'}</Text>
+              <Text style={styles.dataUnit}>%</Text>
+            </View>
+          </View>
+
+          <View style={styles.dataCardWrapper}>
+            <View style={styles.dataCard}>
+              <Text style={styles.dataLabel}>Throttle</Text>
+              <Text style={styles.dataValue}>{liveData?.throttlePosition || '---'}</Text>
+              <Text style={styles.dataUnit}>%</Text>
+            </View>
+          </View>
         </View>
+
+        {!connected && (
+          <View style={styles.infoBox}>
+            <Text style={styles.infoText}>📡 Connect OBD-II device to see real-time vehicle data</Text>
+          </View>
+        )}
+
+        {connected && engineRunning && (
+          <View style={[styles.infoBox, {backgroundColor: colors.success + '15', borderColor: colors.success + '30'}]}>
+            <Text style={[styles.infoText, {color: colors.success}]}>
+              ✅ Receiving live data from mock OBD server
+            </Text>
+          </View>
+        )}
       </View>
     </ScrollView>
   );
@@ -182,6 +319,9 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
     ...shadows.sm,
   },
+  statusHeader: {
+    marginBottom: spacing.md,
+  },
   statusLabel: {
     fontSize: typography.fontSize.sm,
     color: colors.textSecondary,
@@ -190,19 +330,32 @@ const styles = StyleSheet.create({
   statusRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: spacing.md,
+    marginTop: spacing.xs,
   },
   statusDot: {
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: colors.textSecondary,
     marginRight: spacing.xs,
   },
   statusText: {
     fontSize: typography.fontSize.md,
     color: colors.text,
     fontWeight: typography.fontWeight.semibold,
+  },
+  statusTextSmall: {
+    fontSize: typography.fontSize.sm,
+    color: colors.text,
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  controlButton: {
+    flex: 1,
+    borderRadius: borderRadius.md,
+    padding: spacing.sm,
+    alignItems: 'center',
   },
   connectButton: {
     backgroundColor: colors.primary,
@@ -211,6 +364,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   connectButtonText: {
+    fontSize: typography.fontSize.md,
+    fontWeight: typography.fontWeight.semibold,
+    color: colors.surface,
+  },
+  secondaryButton: {
+    backgroundColor: colors.secondary,
+  },
+  secondaryButtonText: {
+    fontSize: typography.fontSize.md,
+    fontWeight: typography.fontWeight.semibold,
+    color: colors.surface,
+  },
+  dangerButton: {
+    backgroundColor: colors.error,
+  },
+  dangerButtonText: {
     fontSize: typography.fontSize.md,
     fontWeight: typography.fontWeight.semibold,
     color: colors.surface,
@@ -331,29 +500,5 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSize.xs,
     color: colors.textSecondary,
     marginTop: spacing.xs,
-  },
-  chartPlaceholder: {
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.md,
-    padding: spacing.xl,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 200,
-    ...shadows.sm,
-  },
-  chartPlaceholderText: {
-    fontSize: 48,
-    marginBottom: spacing.sm,
-  },
-  chartPlaceholderLabel: {
-    fontSize: typography.fontSize.md,
-    fontWeight: typography.fontWeight.semibold,
-    color: colors.text,
-    marginBottom: spacing.xs,
-  },
-  chartPlaceholderSubtext: {
-    fontSize: typography.fontSize.sm,
-    color: colors.textSecondary,
-    textAlign: 'center',
   },
 });
