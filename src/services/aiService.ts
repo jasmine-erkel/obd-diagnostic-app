@@ -1,13 +1,14 @@
 import {AIConfig, AIResponse} from '../types/ai';
+import {config} from '../config.local';
 
 // AI Service for OBD Diagnostics
 // This is ready to integrate with OpenAI, Claude, or other AI APIs
-// Simply add your API key in the config to enable
+// Simply add your API key in src/config.local.ts
 
 const DEFAULT_CONFIG: AIConfig = {
-  apiKey: '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',
+  apiKey: config.anthropicApiKey,
   apiUrl: 'https://api.anthropic.com/v1/messages',
-  model: 'claude-3-5-sonnet-20240620',
+  model: 'claude-3-haiku-20240307',
   maxTokens: 1024,
   temperature: 0.7,
 };
@@ -80,6 +81,7 @@ Always consider safety and recommend professional help when necessary.`;
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         console.error('AI API Error:', errorData);
+        console.error('Full Error Details:', JSON.stringify(errorData, null, 2));
 
         // Extract meaningful error message
         let errorMessage = 'API request failed';
@@ -89,7 +91,8 @@ Always consider safety and recommend professional help when necessary.`;
           errorMessage = `${errorData.error.type}: ${JSON.stringify(errorData.error)}`;
         }
 
-        throw new Error(errorMessage);
+        // Show full error in UI for debugging
+        throw new Error(`${errorMessage}\n\nFull error: ${JSON.stringify(errorData)}`);
       }
 
       const data = await response.json();
@@ -105,15 +108,15 @@ Always consider safety and recommend professional help when necessary.`;
       console.error('AI Service Error:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 
-      // If it's a credit balance error, use mock response instead
-      if (errorMessage.toLowerCase().includes('credit balance')) {
-        console.log('Credit error detected, using mock response');
-        return this.getMockResponse(message, errorCode);
-      }
+      // Temporarily disabled mock fallback to see real error
+      // if (errorMessage.toLowerCase().includes('credit balance')) {
+      //   console.log('Credit error detected, using mock response');
+      //   return this.getMockResponse(message, errorCode);
+      // }
 
       return {
         success: false,
-        message: `AI Error: ${errorMessage}\n\nPlease check your API key and try again.`,
+        message: `AI Error: ${errorMessage}\n\nYour new API key: ${this.config.apiKey?.substring(0, 20)}...\n\nPlease verify your API key has credits at console.anthropic.com/settings/billing`,
         error: errorMessage,
       };
     }
