@@ -13,20 +13,10 @@ export interface ValidationErrors {
 export const validateVehicleForm = (data: VehicleFormData): ValidationErrors => {
   const errors: ValidationErrors = {};
 
-  // Make validation
-  if (!data.make || data.make.trim().length === 0) {
-    errors.make = 'Make is required';
-  }
+  // All fields are now optional, but we validate format if provided
 
-  // Model validation
-  if (!data.model || data.model.trim().length === 0) {
-    errors.model = 'Model is required';
-  }
-
-  // Year validation
-  if (!data.year || data.year.trim().length === 0) {
-    errors.year = 'Year is required';
-  } else {
+  // Year validation (only if provided)
+  if (data.year && data.year.trim().length > 0) {
     const yearNum = parseInt(data.year, 10);
     const currentYear = new Date().getFullYear();
     if (isNaN(yearNum) || yearNum < 1900 || yearNum > currentYear + 1) {
@@ -34,16 +24,16 @@ export const validateVehicleForm = (data: VehicleFormData): ValidationErrors => 
     }
   }
 
-  // VIN validation
-  if (!data.vin || data.vin.trim().length === 0) {
-    errors.vin = 'VIN is required';
-  } else if (data.vin.length !== 17) {
-    errors.vin = 'VIN must be exactly 17 characters';
-  } else if (!/^[A-HJ-NPR-Z0-9]{17}$/i.test(data.vin)) {
-    errors.vin = 'VIN contains invalid characters';
+  // VIN validation (only if provided)
+  if (data.vin && data.vin.trim().length > 0) {
+    if (data.vin.length !== 17) {
+      errors.vin = 'VIN must be exactly 17 characters';
+    } else if (!/^[A-HJ-NPR-Z0-9]{17}$/i.test(data.vin)) {
+      errors.vin = 'VIN contains invalid characters';
+    }
   }
 
-  // Mileage validation (optional)
+  // Mileage validation (only if provided)
   if (data.mileage && data.mileage.trim().length > 0) {
     const mileageNum = parseInt(data.mileage, 10);
     if (isNaN(mileageNum) || mileageNum < 0) {
