@@ -48,6 +48,22 @@ Always consider safety and recommend professional help when necessary.`;
       }
 
       // Make API call (Claude format)
+      const requestBody = {
+        model: this.config.model,
+        max_tokens: this.config.maxTokens,
+        temperature: this.config.temperature,
+        system: systemPrompt,
+        messages: [
+          {role: 'user', content: userMessage},
+        ],
+      };
+
+      console.log('AI Request:', {
+        url: this.config.apiUrl,
+        model: this.config.model,
+        hasApiKey: !!this.config.apiKey,
+      });
+
       const response = await fetch(this.config.apiUrl!, {
         method: 'POST',
         headers: {
@@ -55,20 +71,24 @@ Always consider safety and recommend professional help when necessary.`;
           'x-api-key': this.config.apiKey!,
           'anthropic-version': '2023-06-01',
         },
-        body: JSON.stringify({
-          model: this.config.model,
-          max_tokens: this.config.maxTokens,
-          temperature: this.config.temperature,
-          system: systemPrompt,
-          messages: [
-            {role: 'user', content: userMessage},
-          ],
-        }),
+        body: JSON.stringify(requestBody),
       });
+
+      console.log('AI Response Status:', response.status, response.statusText);
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(`API request failed: ${response.statusText} - ${JSON.stringify(errorData)}`);
+        console.error('AI API Error:', errorData);
+
+        // Extract meaningful error message
+        let errorMessage = 'API request failed';
+        if (errorData.error?.message) {
+          errorMessage = errorData.error.message;
+        } else if (errorData.error?.type) {
+          errorMessage = `${errorData.error.type}: ${JSON.stringify(errorData.error)}`;
+        }
+
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();
@@ -82,10 +102,11 @@ Always consider safety and recommend professional help when necessary.`;
       };
     } catch (error) {
       console.error('AI Service Error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       return {
         success: false,
-        message: 'Failed to get AI response. Please try again.',
-        error: error instanceof Error ? error.message : 'Unknown error',
+        message: `AI Error: ${errorMessage}\n\nPlease check your API key and try again.`,
+        error: errorMessage,
       };
     }
   },
