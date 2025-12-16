@@ -19,7 +19,6 @@ export const VehicleCard: React.FC<VehicleCardProps> = ({vehicle, onPress}) => {
       <View style={styles.cardContent}>
         <View style={styles.cardHeader}>
           <View style={styles.headerLeft}>
-            <Text style={styles.vehicleIcon}>🚗</Text>
             <View style={styles.titleContainer}>
               <Text style={styles.nickname} numberOfLines={1}>
                 {displayName}
@@ -99,15 +98,8 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
     flex: 1,
     marginRight: spacing.sm,
-  },
-  vehicleIcon: {
-    fontSize: 28,
-    marginRight: spacing.sm,
-    marginTop: -2,
   },
   titleContainer: {
     flex: 1,

@@ -104,7 +104,6 @@ export const AddVehicleScreen: React.FC<AddVehicleScreenProps> = ({navigation}) 
           <Text style={styles.subtitle}>Enter your vehicle's information</Text>
 
           <View style={styles.infoBox}>
-            <Text style={styles.infoIcon}>💡</Text>
             <Text style={styles.infoText}>
               Providing complete information helps our AI give you more accurate diagnostics and recommendations.
             </Text>
@@ -227,20 +226,16 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   infoBox: {
-    flexDirection: 'row',
     backgroundColor: colors.info + '15',
     borderRadius: borderRadius.md,
     padding: spacing.md,
     marginBottom: spacing.lg,
     borderWidth: 1,
     borderColor: colors.info + '30',
-  },
-  infoIcon: {
-    fontSize: 20,
-    marginRight: spacing.sm,
+    borderLeftWidth: 4,
+    borderLeftColor: colors.info,
   },
   infoText: {
-    flex: 1,
     fontSize: typography.fontSize.sm,
     color: colors.info,
     lineHeight: 20,

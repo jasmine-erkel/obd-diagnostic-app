@@ -49,7 +49,6 @@ export const VehicleListScreen: React.FC<VehicleListScreenProps> = ({navigation}
         )}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyIcon}>🚗</Text>
             <Text style={styles.emptyTitle}>No vehicles yet</Text>
             <Text style={styles.emptySubtitle}>
               Tap the + button below to add your first vehicle
@@ -118,10 +117,6 @@ const styles = StyleSheet.create({
     marginTop: spacing.xxl * 2,
     padding: spacing.lg,
     alignItems: 'center',
-  },
-  emptyIcon: {
-    fontSize: 64,
-    marginBottom: spacing.md,
   },
   emptyTitle: {
     fontSize: typography.fontSize.xl,
