@@ -15,6 +15,7 @@ export const DiagnosticsScreen: React.FC<DiagnosticsScreenProps> = () => {
 
   // Mode selection
   const [useMockMode, setUseMockMode] = useState(true); // Start with mock mode for easy testing
+  const [isDriving, setIsDriving] = useState(false); // Track driving simulation state
 
   // Bluetooth state
   const [isConnected, setIsConnected] = useState(false);
@@ -102,8 +103,11 @@ export const DiagnosticsScreen: React.FC<DiagnosticsScreenProps> = () => {
             onPress: async () => {
               if (!useMockMode) {
                 await bluetoothService.disconnect();
+              } else {
+                mockOBDService.stopDriving();
               }
               setIsConnected(false);
+              setIsDriving(false);
               setLiveData({});
               Alert.alert('Disconnected', `${useMockMode ? 'Mock' : 'OBD-II'} device disconnected successfully`);
             },
@@ -265,12 +269,13 @@ export const DiagnosticsScreen: React.FC<DiagnosticsScreenProps> = () => {
             <View style={styles.toggleInfo}>
               <Text style={styles.toggleLabel}>Simulate Driving</Text>
               <Text style={styles.toggleSubtext}>
-                {mockOBDService.getEngineState().isDriving ? 'Vehicle in motion (dynamic data)' : 'Vehicle at idle'}
+                {isDriving ? 'Vehicle in motion (dynamic data)' : 'Vehicle at idle'}
               </Text>
             </View>
             <Switch
-              value={mockOBDService.getEngineState().isDriving}
+              value={isDriving}
               onValueChange={(value) => {
+                setIsDriving(value);
                 if (value) {
                   mockOBDService.startDriving();
                 } else {
@@ -345,42 +350,42 @@ export const DiagnosticsScreen: React.FC<DiagnosticsScreenProps> = () => {
           <View style={styles.dataCardWrapper}>
             <View style={styles.dataCard}>
               <Text style={styles.dataLabel}>RPM</Text>
-              <Text style={styles.dataValue}>{isConnected && liveData.rpm ? Math.round(liveData.rpm) : MOCK_LIVE_DATA.rpm.value}</Text>
+              <Text style={styles.dataValue}>{isConnected && liveData.rpm !== undefined ? Math.round(liveData.rpm) : MOCK_LIVE_DATA.rpm.value}</Text>
               <Text style={styles.dataUnit}>rpm</Text>
             </View>
           </View>
           <View style={styles.dataCardWrapper}>
             <View style={styles.dataCard}>
               <Text style={styles.dataLabel}>Speed</Text>
-              <Text style={styles.dataValue}>{isConnected && liveData.speed ? Math.round(liveData.speed) : MOCK_LIVE_DATA.speed.value}</Text>
+              <Text style={styles.dataValue}>{isConnected && liveData.speed !== undefined ? Math.round(liveData.speed) : MOCK_LIVE_DATA.speed.value}</Text>
               <Text style={styles.dataUnit}>km/h</Text>
             </View>
           </View>
           <View style={styles.dataCardWrapper}>
             <View style={styles.dataCard}>
               <Text style={styles.dataLabel}>Coolant Temp</Text>
-              <Text style={styles.dataValue}>{isConnected && liveData.coolantTemp ? Math.round(liveData.coolantTemp) : MOCK_LIVE_DATA.coolantTemp.value}</Text>
+              <Text style={styles.dataValue}>{isConnected && liveData.coolantTemp !== undefined ? Math.round(liveData.coolantTemp) : MOCK_LIVE_DATA.coolantTemp.value}</Text>
               <Text style={styles.dataUnit}>°C</Text>
             </View>
           </View>
           <View style={styles.dataCardWrapper}>
             <View style={styles.dataCard}>
               <Text style={styles.dataLabel}>Throttle Pos</Text>
-              <Text style={styles.dataValue}>{isConnected && liveData.throttlePos ? Math.round(liveData.throttlePos) : MOCK_LIVE_DATA.throttlePos.value}</Text>
+              <Text style={styles.dataValue}>{isConnected && liveData.throttlePos !== undefined ? Math.round(liveData.throttlePos) : MOCK_LIVE_DATA.throttlePos.value}</Text>
               <Text style={styles.dataUnit}>%</Text>
             </View>
           </View>
           <View style={styles.dataCardWrapper}>
             <View style={styles.dataCard}>
               <Text style={styles.dataLabel}>Fuel Level</Text>
-              <Text style={styles.dataValue}>{isConnected && liveData.fuelLevel ? Math.round(liveData.fuelLevel) : MOCK_LIVE_DATA.fuelLevel.value}</Text>
+              <Text style={styles.dataValue}>{isConnected && liveData.fuelLevel !== undefined ? Math.round(liveData.fuelLevel) : MOCK_LIVE_DATA.fuelLevel.value}</Text>
               <Text style={styles.dataUnit}>%</Text>
             </View>
           </View>
           <View style={styles.dataCardWrapper}>
             <View style={styles.dataCard}>
               <Text style={styles.dataLabel}>Intake Temp</Text>
-              <Text style={styles.dataValue}>{isConnected && liveData.intakeTemp ? Math.round(liveData.intakeTemp) : MOCK_LIVE_DATA.intakeTemp.value}</Text>
+              <Text style={styles.dataValue}>{isConnected && liveData.intakeTemp !== undefined ? Math.round(liveData.intakeTemp) : MOCK_LIVE_DATA.intakeTemp.value}</Text>
               <Text style={styles.dataUnit}>°C</Text>
             </View>
           </View>
