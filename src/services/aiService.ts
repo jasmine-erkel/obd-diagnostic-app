@@ -7,7 +7,7 @@ import {AIConfig, AIResponse} from '../types/ai';
 const DEFAULT_CONFIG: AIConfig = {
   apiKey: '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',
   apiUrl: 'https://api.anthropic.com/v1/messages',
-  model: 'claude-3-5-sonnet-20241022',
+  model: 'claude-3-5-sonnet-20240620',
   maxTokens: 1024,
   temperature: 0.7,
 };
