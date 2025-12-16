@@ -5,7 +5,7 @@ import {AIConfig, AIResponse} from '../types/ai';
 // Simply add your API key in the config to enable
 
 const DEFAULT_CONFIG: AIConfig = {
-  apiKey: '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',
+  apiKey: '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',
   apiUrl: 'https://api.anthropic.com/v1/messages',
   model: 'claude-3-5-sonnet-20240620',
   maxTokens: 1024,
