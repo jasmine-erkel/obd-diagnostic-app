@@ -371,7 +371,7 @@ export const DiagnosticsScreen: React.FC<DiagnosticsScreenProps> = () => {
           <View style={styles.dataCardWrapper}>
             <View style={styles.dataCard}>
               <Text style={styles.dataLabel}>Throttle Pos</Text>
-              <Text style={styles.dataValue}>{isConnected && liveData.throttlePos !== undefined ? Math.round(liveData.throttlePos) : MOCK_LIVE_DATA.throttlePos.value}</Text>
+              <Text style={styles.dataValue}>{isConnected && liveData.throttlePos !== undefined ? Math.round(liveData.throttlePos) : MOCK_LIVE_DATA.throttlePosition.value}</Text>
               <Text style={styles.dataUnit}>%</Text>
             </View>
           </View>
