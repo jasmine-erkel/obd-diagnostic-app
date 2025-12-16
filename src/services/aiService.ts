@@ -5,10 +5,10 @@ import {AIConfig, AIResponse} from '../types/ai';
 // Simply add your API key in the config to enable
 
 const DEFAULT_CONFIG: AIConfig = {
-  apiKey: '', // Add your API key here
-  apiUrl: 'https://api.openai.com/v1/chat/completions', // or Claude API URL
-  model: 'gpt-4', // or 'claude-3-sonnet-20240229'
-  maxTokens: 500,
+  apiKey: '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',
+  apiUrl: 'https://api.anthropic.com/v1/messages',
+  model: 'claude-3-5-sonnet-20241022',
+  maxTokens: 1024,
   temperature: 0.7,
 };
 
@@ -47,32 +47,34 @@ Always consider safety and recommend professional help when necessary.`;
         userMessage = `I have error code ${errorCode}. ${message}`;
       }
 
-      // Make API call (OpenAI format - adjust for Claude if needed)
+      // Make API call (Claude format)
       const response = await fetch(this.config.apiUrl!, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.config.apiKey}`,
+          'x-api-key': this.config.apiKey!,
+          'anthropic-version': '2023-06-01',
         },
         body: JSON.stringify({
           model: this.config.model,
-          messages: [
-            {role: 'system', content: systemPrompt},
-            {role: 'user', content: userMessage},
-          ],
           max_tokens: this.config.maxTokens,
           temperature: this.config.temperature,
+          system: systemPrompt,
+          messages: [
+            {role: 'user', content: userMessage},
+          ],
         }),
       });
 
       if (!response.ok) {
-        throw new Error(`API request failed: ${response.statusText}`);
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(`API request failed: ${response.statusText} - ${JSON.stringify(errorData)}`);
       }
 
       const data = await response.json();
 
-      // Extract message from response (OpenAI format)
-      const aiMessage = data.choices?.[0]?.message?.content || 'No response from AI';
+      // Extract message from response (Claude format)
+      const aiMessage = data.content?.[0]?.text || 'No response from AI';
 
       return {
         success: true,
