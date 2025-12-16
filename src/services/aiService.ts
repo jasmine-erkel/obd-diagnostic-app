@@ -35,6 +35,7 @@ export const aiService = {
       };
     }
 
+    // Try real API first, fall back to mock if credits issue
     try {
       // Build the system prompt for OBD diagnostics
       const systemPrompt = `You are an expert automotive technician specializing in OBD-II diagnostics.
@@ -103,6 +104,13 @@ Always consider safety and recommend professional help when necessary.`;
     } catch (error) {
       console.error('AI Service Error:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+
+      // If it's a credit balance error, use mock response instead
+      if (errorMessage.toLowerCase().includes('credit balance')) {
+        console.log('Credit error detected, using mock response');
+        return this.getMockResponse(message, errorCode);
+      }
+
       return {
         success: false,
         message: `AI Error: ${errorMessage}\n\nPlease check your API key and try again.`,
