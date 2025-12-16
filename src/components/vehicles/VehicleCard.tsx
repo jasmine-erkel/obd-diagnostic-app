@@ -1,5 +1,5 @@
 import React from 'react';
-import {View, Text, StyleSheet, TouchableOpacity} from 'react-native';
+import {View, Text, StyleSheet, TouchableOpacity, Image} from 'react-native';
 import {Vehicle} from '../../types/vehicle';
 import {colors, spacing, typography, borderRadius, shadows} from '../../constants/theme';
 
@@ -9,8 +9,10 @@ interface VehicleCardProps {
 }
 
 export const VehicleCard: React.FC<VehicleCardProps> = ({vehicle, onPress}) => {
-  const displayName = vehicle.nickname || `${vehicle.make} ${vehicle.model}`;
-  const hasFullInfo = vehicle.make !== 'Unknown' && vehicle.vin !== 'N/A';
+  const displayName = vehicle.nickname || `${vehicle.make || ''} ${vehicle.model || ''}`.trim() || 'Unknown Vehicle';
+  const hasAllBasicInfo = vehicle.make && vehicle.model && vehicle.year;
+  const hasValidVin = vehicle.vin && vehicle.vin.length === 17;
+  const isComplete = hasAllBasicInfo && hasValidVin;
 
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.7}>
@@ -18,13 +20,22 @@ export const VehicleCard: React.FC<VehicleCardProps> = ({vehicle, onPress}) => {
 
       <View style={styles.cardContent}>
         <View style={styles.cardHeader}>
+          <View style={styles.photoContainer}>
+            {vehicle.photo ? (
+              <Image source={{uri: vehicle.photo}} style={styles.photo} />
+            ) : (
+              <View style={styles.photoPlaceholder}>
+                <Text style={styles.photoPlaceholderText}>🚗</Text>
+              </View>
+            )}
+          </View>
           <View style={styles.headerLeft}>
             <View style={styles.titleContainer}>
               <Text style={styles.nickname} numberOfLines={1}>
                 {displayName}
               </Text>
               <Text style={styles.vehicleInfo}>
-                {vehicle.year} {vehicle.make} {vehicle.model}
+                {[vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(' ') || 'No details'}
               </Text>
             </View>
           </View>
@@ -57,10 +68,10 @@ export const VehicleCard: React.FC<VehicleCardProps> = ({vehicle, onPress}) => {
         </View>
 
         <View style={styles.footer}>
-          <View style={[styles.statusBadge, !hasFullInfo && styles.statusBadgeWarning]}>
-            <View style={[styles.statusDot, !hasFullInfo && styles.statusDotWarning]} />
+          <View style={[styles.statusBadge, !isComplete && styles.statusBadgeWarning]}>
+            <View style={[styles.statusDot, !isComplete && styles.statusDotWarning]} />
             <Text style={styles.statusText}>
-              {hasFullInfo ? 'Ready to connect' : 'Incomplete info'}
+              {isComplete ? 'Ready to connect' : 'Incomplete info'}
             </Text>
           </View>
         </View>
@@ -96,6 +107,26 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     marginBottom: spacing.sm,
+  },
+  photoContainer: {
+    marginRight: spacing.md,
+  },
+  photo: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: colors.background,
+  },
+  photoPlaceholder: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: colors.background,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  photoPlaceholderText: {
+    fontSize: 28,
   },
   headerLeft: {
     flex: 1,

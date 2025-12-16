@@ -4,6 +4,7 @@ import {VehiclesStackParamList} from './types';
 import {VehicleListScreen} from '../screens/VehicleListScreen';
 import {AddVehicleScreen} from '../screens/AddVehicleScreen';
 import {VehicleDetailScreen} from '../screens/VehicleDetailScreen';
+import {MaintenanceRecordsScreen} from '../screens/MaintenanceRecordsScreen';
 import {colors} from '../constants/theme';
 
 const Stack = createNativeStackNavigator<VehiclesStackParamList>();
@@ -40,6 +41,13 @@ export const VehiclesStackNavigator: React.FC = () => {
         component={VehicleDetailScreen}
         options={{
           title: 'Vehicle Details',
+        }}
+      />
+      <Stack.Screen
+        name="MaintenanceRecords"
+        component={MaintenanceRecordsScreen}
+        options={{
+          title: 'Maintenance Records',
         }}
       />
     </Stack.Navigator>

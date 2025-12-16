@@ -1,12 +1,13 @@
-import React from 'react';
-import {View, Text, StyleSheet, ScrollView, Alert} from 'react-native';
+import React, {useState} from 'react';
+import {View, Text, StyleSheet, ScrollView, Alert, Image, Modal} from 'react-native';
 import {RouteProp} from '@react-navigation/native';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {VehiclesStackParamList} from '../navigation/types';
 import {useVehicles} from '../context/VehicleContext';
 import {Button} from '../components/common/Button';
 import {Card} from '../components/common/Card';
-import {colors, spacing, typography} from '../constants/theme';
+import {ImagePicker} from '../components/common/ImagePicker';
+import {colors, spacing, typography, borderRadius, shadows} from '../constants/theme';
 
 type VehicleDetailScreenRouteProp = RouteProp<VehiclesStackParamList, 'VehicleDetail'>;
 type VehicleDetailScreenNavigationProp = NativeStackNavigationProp<VehiclesStackParamList, 'VehicleDetail'>;
@@ -18,8 +19,9 @@ interface VehicleDetailScreenProps {
 
 export const VehicleDetailScreen: React.FC<VehicleDetailScreenProps> = ({route, navigation}) => {
   const {vehicleId} = route.params;
-  const {getVehicle, deleteVehicle} = useVehicles();
+  const {getVehicle, deleteVehicle, updateVehicle} = useVehicles();
   const vehicle = getVehicle(vehicleId);
+  const [showImagePicker, setShowImagePicker] = useState(false);
 
   if (!vehicle) {
     return (
@@ -65,9 +67,30 @@ export const VehicleDetailScreen: React.FC<VehicleDetailScreenProps> = ({route, 
     Alert.alert('Diagnostic History', 'Diagnostic history feature coming soon!');
   };
 
+  const handleUpdatePhoto = async (uri: string) => {
+    const success = await updateVehicle(vehicle.id, {photo: uri});
+    if (success) {
+      setShowImagePicker(false);
+    } else {
+      Alert.alert('Error', 'Failed to update photo');
+    }
+  };
+
   return (
     <View style={styles.container}>
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+        {/* Vehicle Photo */}
+        <View style={styles.photoSection}>
+          {vehicle.photo ? (
+            <Image source={{uri: vehicle.photo}} style={styles.vehiclePhoto} />
+          ) : (
+            <View style={styles.photoPlaceholder}>
+              <Text style={styles.photoPlaceholderText}>🚗</Text>
+              <Text style={styles.photoPlaceholderLabel}>No photo</Text>
+            </View>
+          )}
+        </View>
+
         {/* Vehicle Info Card */}
         <Card variant="elevated">
           <Text style={styles.sectionTitle}>Vehicle Information</Text>
@@ -119,6 +142,13 @@ export const VehicleDetailScreen: React.FC<VehicleDetailScreenProps> = ({route, 
           <Text style={styles.sectionTitle}>Actions</Text>
 
           <Button
+            title="Update Photo"
+            onPress={() => setShowImagePicker(true)}
+            variant="secondary"
+            style={styles.actionButton}
+          />
+
+          <Button
             title="Connect to OBD-II Device"
             onPress={handleConnectOBD}
             variant="primary"
@@ -128,6 +158,13 @@ export const VehicleDetailScreen: React.FC<VehicleDetailScreenProps> = ({route, 
           <Button
             title="View Diagnostic History"
             onPress={handleViewHistory}
+            variant="secondary"
+            style={styles.actionButton}
+          />
+
+          <Button
+            title="Maintenance Records"
+            onPress={() => navigation.navigate('MaintenanceRecords', {vehicleId: vehicle.id})}
             variant="secondary"
             style={styles.actionButton}
           />
@@ -150,6 +187,29 @@ export const VehicleDetailScreen: React.FC<VehicleDetailScreenProps> = ({route, 
           </Text>
         </View>
       </ScrollView>
+
+      <Modal
+        visible={showImagePicker}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowImagePicker(false)}>
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Update Vehicle Photo</Text>
+            <Button
+              title="Cancel"
+              onPress={() => setShowImagePicker(false)}
+              variant="outline"
+            />
+          </View>
+          <View style={styles.modalContent}>
+            <ImagePicker
+              onImageSelected={handleUpdatePhoto}
+              currentImage={vehicle.photo}
+            />
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -213,5 +273,55 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSize.sm,
     color: colors.textTertiary,
     marginBottom: spacing.xs,
+  },
+  photoSection: {
+    width: '100%',
+    height: 250,
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.lg,
+    overflow: 'hidden',
+    marginBottom: spacing.md,
+    ...shadows.md,
+  },
+  vehiclePhoto: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  photoPlaceholder: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: colors.background,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  photoPlaceholderText: {
+    fontSize: 80,
+    marginBottom: spacing.sm,
+  },
+  photoPlaceholderLabel: {
+    fontSize: typography.fontSize.md,
+    color: colors.textTertiary,
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderLight,
+  },
+  modalTitle: {
+    fontSize: typography.fontSize.xl,
+    fontWeight: typography.fontWeight.bold,
+    color: colors.text,
+  },
+  modalContent: {
+    flex: 1,
+    padding: spacing.lg,
   },
 });

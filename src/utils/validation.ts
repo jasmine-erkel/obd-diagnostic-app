@@ -1,6 +1,7 @@
 import {VehicleFormData} from '../types/vehicle';
 
 export interface ValidationErrors {
+  _form?: string;
   make?: string;
   model?: string;
   year?: string;
@@ -39,6 +40,16 @@ export const validateVehicleForm = (data: VehicleFormData): ValidationErrors => 
     if (isNaN(mileageNum) || mileageNum < 0) {
       errors.mileage = 'Mileage must be a positive number';
     }
+  }
+
+  // Require at least ONE of year, make, or model
+  const hasAtLeastOne =
+    (data.year && data.year.trim().length > 0) ||
+    (data.make && data.make.trim().length > 0) ||
+    (data.model && data.model.trim().length > 0);
+
+  if (!hasAtLeastOne) {
+    errors._form = 'Please provide at least one of: Year, Make, or Model';
   }
 
   return errors;

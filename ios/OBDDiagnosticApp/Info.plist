@@ -39,6 +39,10 @@
 	<string>This app requires Bluetooth to connect to your OBD-II adapter for vehicle diagnostics.</string>
 	<key>NSBluetoothPeripheralUsageDescription</key>
 	<string>This app requires Bluetooth to connect to your OBD-II adapter for vehicle diagnostics.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Add photos to identify your vehicles</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Take photos of your vehicles</string>
 	<key>RCTNewArchEnabled</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>

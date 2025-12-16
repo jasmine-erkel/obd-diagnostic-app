@@ -15,6 +15,7 @@ export type VehiclesStackParamList = {
   VehicleList: undefined;
   AddVehicle: undefined;
   VehicleDetail: { vehicleId: string };
+  MaintenanceRecords: { vehicleId: string };
 };
 
 // Screen props types

@@ -1,5 +1,6 @@
 import React, {createContext, useContext, useState, ReactNode} from 'react';
 import {ChatMessage, AIConfig} from '../types/ai';
+import {Vehicle} from '../types/vehicle';
 import {aiService} from '../services/aiService';
 import {generateUUID} from '../utils/uuid';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -10,7 +11,7 @@ const AI_CONFIG_KEY = '@obd_ai_config';
 interface AIContextType {
   messages: ChatMessage[];
   loading: boolean;
-  sendMessage: (content: string, errorCode?: string) => Promise<void>;
+  sendMessage: (content: string, errorCode?: string, vehicle?: Vehicle | null) => Promise<void>;
   clearHistory: () => Promise<void>;
   loadHistory: () => Promise<void>;
   updateConfig: (config: Partial<AIConfig>) => Promise<void>;
@@ -53,7 +54,7 @@ export const AIProvider: React.FC<{children: ReactNode}> = ({children}) => {
   };
 
   // Send a message
-  const sendMessage = async (content: string, errorCode?: string) => {
+  const sendMessage = async (content: string, errorCode?: string, vehicle?: Vehicle | null) => {
     if (!content.trim()) {
       return;
     }
@@ -76,7 +77,7 @@ export const AIProvider: React.FC<{children: ReactNode}> = ({children}) => {
     try {
       // Get AI response (or mock if not configured)
       const response = aiService.isConfigured()
-        ? await aiService.sendMessage(content, errorCode)
+        ? await aiService.sendMessage(content, errorCode, vehicle)
         : aiService.getMockResponse(content, errorCode);
 
       // Add assistant message

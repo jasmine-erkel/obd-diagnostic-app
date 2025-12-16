@@ -13,11 +13,15 @@ import {
 import {colors, spacing, typography, borderRadius, shadows} from '../constants/theme';
 import {AIAssistantScreenProps} from '../navigation/types';
 import {useAI} from '../context/AIContext';
+import {useVehicles} from '../context/VehicleContext';
 import {ChatMessage} from '../types/ai';
+import {VehicleSelector} from '../components/vehicles/VehicleSelector';
 
 export const AIAssistantScreen: React.FC<AIAssistantScreenProps> = () => {
   const {messages, loading, sendMessage, loadHistory, isConfigured, clearHistory} = useAI();
+  const {vehicles, selectedVehicle, selectedVehicleId, selectVehicle} = useVehicles();
   const [inputText, setInputText] = useState('');
+  const [showVehicleSelector, setShowVehicleSelector] = useState(false);
   const flatListRef = useRef<FlatList>(null);
 
   useEffect(() => {
@@ -40,7 +44,7 @@ export const AIAssistantScreen: React.FC<AIAssistantScreenProps> = () => {
 
     const message = inputText.trim();
     setInputText('');
-    await sendMessage(message);
+    await sendMessage(message, undefined, selectedVehicle);
   };
 
   const handleSuggestedQuestion = (question: string) => {
@@ -127,6 +131,44 @@ export const AIAssistantScreen: React.FC<AIAssistantScreenProps> = () => {
         )}
       </View>
 
+      <View style={styles.vehicleHeader}>
+        {selectedVehicle ? (
+          <View style={styles.selectedVehicleContainer}>
+            <View style={styles.vehicleIcon}>
+              <Text style={styles.vehicleIconText}>🚗</Text>
+            </View>
+            <View style={styles.vehicleInfoCompact}>
+              <Text style={styles.vehicleNameCompact} numberOfLines={1}>
+                {selectedVehicle.nickname ||
+                  [selectedVehicle.year, selectedVehicle.make, selectedVehicle.model]
+                    .filter(Boolean)
+                    .join(' ') || 'Unknown Vehicle'}
+              </Text>
+              <Text style={styles.vehicleDetailsCompact} numberOfLines={1}>
+                {[selectedVehicle.year, selectedVehicle.make, selectedVehicle.model]
+                  .filter(Boolean)
+                  .join(' ') || 'No details'}
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={styles.changeVehicleButton}
+              onPress={() => setShowVehicleSelector(true)}>
+              <Text style={styles.changeVehicleButtonText}>Change</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <View style={styles.noVehicleContainer}>
+            <Text style={styles.noVehicleText}>No vehicle selected</Text>
+            <Text style={styles.noVehicleSubtext}>General automotive questions</Text>
+            <TouchableOpacity
+              style={styles.selectVehicleButton}
+              onPress={() => setShowVehicleSelector(true)}>
+              <Text style={styles.selectVehicleButtonText}>Select Vehicle</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </View>
+
       <FlatList
         ref={flatListRef}
         data={messages}
@@ -154,6 +196,14 @@ export const AIAssistantScreen: React.FC<AIAssistantScreenProps> = () => {
           <Text style={styles.sendButtonText}>{loading ? '...' : '→'}</Text>
         </TouchableOpacity>
       </View>
+
+      <VehicleSelector
+        visible={showVehicleSelector}
+        vehicles={vehicles}
+        selectedVehicleId={selectedVehicleId}
+        onSelect={selectVehicle}
+        onClose={() => setShowVehicleSelector(false)}
+      />
     </KeyboardAvoidingView>
   );
 };
@@ -327,5 +377,78 @@ const styles = StyleSheet.create({
     fontSize: 24,
     color: colors.surface,
     fontWeight: '600',
+  },
+  vehicleHeader: {
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderLight,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  selectedVehicleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  vehicleIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.background,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: spacing.sm,
+  },
+  vehicleIconText: {
+    fontSize: 20,
+  },
+  vehicleInfoCompact: {
+    flex: 1,
+  },
+  vehicleNameCompact: {
+    fontSize: typography.fontSize.md,
+    fontWeight: typography.fontWeight.semibold,
+    color: colors.text,
+  },
+  vehicleDetailsCompact: {
+    fontSize: typography.fontSize.sm,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  changeVehicleButton: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.sm,
+    backgroundColor: colors.primary + '15',
+  },
+  changeVehicleButtonText: {
+    fontSize: typography.fontSize.sm,
+    fontWeight: typography.fontWeight.medium,
+    color: colors.primary,
+  },
+  noVehicleContainer: {
+    alignItems: 'center',
+    paddingVertical: spacing.xs,
+  },
+  noVehicleText: {
+    fontSize: typography.fontSize.md,
+    fontWeight: typography.fontWeight.medium,
+    color: colors.textSecondary,
+    marginBottom: 2,
+  },
+  noVehicleSubtext: {
+    fontSize: typography.fontSize.sm,
+    color: colors.textTertiary,
+    marginBottom: spacing.sm,
+  },
+  selectVehicleButton: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.sm,
+    backgroundColor: colors.primary,
+  },
+  selectVehicleButtonText: {
+    fontSize: typography.fontSize.sm,
+    fontWeight: typography.fontWeight.medium,
+    color: colors.surface,
   },
 });

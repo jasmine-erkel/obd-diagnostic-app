@@ -9,6 +9,7 @@ import {generateUUID} from '../utils/uuid';
 import {validateVehicleForm, hasErrors, ValidationErrors} from '../utils/validation';
 import {Input} from '../components/common/Input';
 import {Button} from '../components/common/Button';
+import {ImagePicker} from '../components/common/ImagePicker';
 import {colors, spacing, typography, borderRadius} from '../constants/theme';
 
 type AddVehicleScreenNavigationProp = NativeStackNavigationProp<VehiclesStackParamList, 'AddVehicle'>;
@@ -28,19 +29,24 @@ export const AddVehicleScreen: React.FC<AddVehicleScreenProps> = ({navigation}) 
     nickname: '',
     color: '',
     mileage: '',
+    photo: undefined,
   });
   const [errors, setErrors] = useState<ValidationErrors>({});
 
   const handleInputChange = (field: keyof VehicleFormData, value: string) => {
     setFormData(prev => ({...prev, [field]: value}));
     // Clear error for this field when user starts typing
-    if (errors[field]) {
+    if (field in errors && errors[field as keyof ValidationErrors]) {
       setErrors(prev => {
         const newErrors = {...prev};
-        delete newErrors[field];
+        delete newErrors[field as keyof ValidationErrors];
         return newErrors;
       });
     }
+  };
+
+  const handleImageSelected = (uri: string) => {
+    setFormData(prev => ({...prev, photo: uri}));
   };
 
   const handleSubmit = async () => {
@@ -58,13 +64,14 @@ export const AddVehicleScreen: React.FC<AddVehicleScreenProps> = ({navigation}) 
       const now = new Date().toISOString();
       const vehicle: Vehicle = {
         id: generateUUID(),
-        make: formData.make?.trim() || 'Unknown',
-        model: formData.model?.trim() || 'Unknown',
-        year: formData.year ? parseInt(formData.year, 10) : new Date().getFullYear(),
-        vin: formData.vin?.trim().toUpperCase() || 'N/A',
+        make: formData.make?.trim() || undefined,
+        model: formData.model?.trim() || undefined,
+        year: formData.year ? parseInt(formData.year, 10) : undefined,
+        vin: formData.vin?.trim().toUpperCase() || undefined,
         nickname: formData.nickname?.trim() || undefined,
         color: formData.color?.trim() || undefined,
         mileage: formData.mileage ? parseInt(formData.mileage, 10) : undefined,
+        photo: formData.photo,
         createdAt: now,
         updatedAt: now,
       };
@@ -108,6 +115,12 @@ export const AddVehicleScreen: React.FC<AddVehicleScreenProps> = ({navigation}) 
               Providing complete information helps our AI give you more accurate diagnostics and recommendations.
             </Text>
           </View>
+
+          {errors._form && (
+            <View style={styles.errorBanner}>
+              <Text style={styles.errorBannerText}>{errors._form}</Text>
+            </View>
+          )}
 
           <Input
             label="Make (Optional)"
@@ -157,6 +170,11 @@ export const AddVehicleScreen: React.FC<AddVehicleScreenProps> = ({navigation}) 
             placeholder="e.g., My Daily Driver"
             autoCapitalize="words"
             returnKeyType="next"
+          />
+
+          <ImagePicker
+            onImageSelected={handleImageSelected}
+            currentImage={formData.photo}
           />
 
           <Input
@@ -239,6 +257,22 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSize.sm,
     color: colors.info,
     lineHeight: 20,
+  },
+  errorBanner: {
+    backgroundColor: colors.error + '15',
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
+    marginBottom: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.error + '30',
+    borderLeftWidth: 4,
+    borderLeftColor: colors.error,
+  },
+  errorBannerText: {
+    fontSize: typography.fontSize.sm,
+    color: colors.error,
+    lineHeight: 20,
+    fontWeight: typography.fontWeight.medium,
   },
   buttonContainer: {
     flexDirection: 'row',
