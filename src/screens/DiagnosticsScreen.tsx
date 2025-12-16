@@ -1,5 +1,5 @@
 import React, {useState, useEffect} from 'react';
-import {View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Modal, FlatList, ActivityIndicator} from 'react-native';
+import {View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Modal, FlatList, ActivityIndicator, Switch} from 'react-native';
 import {colors, spacing, typography, borderRadius, shadows} from '../constants/theme';
 import {DiagnosticsScreenProps} from '../navigation/types';
 import {getErrorCodeDetails, MOCK_LIVE_DATA} from '../constants/obdCodes';
@@ -7,10 +7,14 @@ import {useAI} from '../context/AIContext';
 import {useNavigation} from '@react-navigation/native';
 import {ErrorCode} from '../types/vehicle';
 import {bluetoothService, OBDDevice, OBDData} from '../services/bluetoothService';
+import {mockOBDService} from '../services/mockOBDService';
 
 export const DiagnosticsScreen: React.FC<DiagnosticsScreenProps> = () => {
   const {sendMessage} = useAI();
   const navigation = useNavigation();
+
+  // Mode selection
+  const [useMockMode, setUseMockMode] = useState(true); // Start with mock mode for easy testing
 
   // Bluetooth state
   const [isConnected, setIsConnected] = useState(false);
@@ -33,7 +37,9 @@ export const DiagnosticsScreen: React.FC<DiagnosticsScreenProps> = () => {
     if (isConnected) {
       interval = setInterval(async () => {
         try {
-          const data = await bluetoothService.readLiveData();
+          const data = useMockMode
+            ? await mockOBDService.readLiveData()
+            : await bluetoothService.readLiveData();
           setLiveData(data);
         } catch (error) {
           console.error('Error reading live data:', error);
@@ -46,7 +52,7 @@ export const DiagnosticsScreen: React.FC<DiagnosticsScreenProps> = () => {
         clearInterval(interval);
       }
     };
-  }, [isConnected]);
+  }, [isConnected, useMockMode]);
 
   const getSeverityColor = (severity: string) => {
     switch (severity) {
@@ -87,44 +93,69 @@ export const DiagnosticsScreen: React.FC<DiagnosticsScreenProps> = () => {
       // Disconnect
       Alert.alert(
         'Disconnect Device',
-        'Are you sure you want to disconnect from the OBD-II device?',
+        `Are you sure you want to disconnect from the ${useMockMode ? 'mock' : 'OBD-II'} device?`,
         [
           {text: 'Cancel', style: 'cancel'},
           {
             text: 'Disconnect',
             style: 'destructive',
             onPress: async () => {
-              await bluetoothService.disconnect();
+              if (!useMockMode) {
+                await bluetoothService.disconnect();
+              }
               setIsConnected(false);
               setLiveData({});
-              Alert.alert('Disconnected', 'OBD-II device disconnected successfully');
+              Alert.alert('Disconnected', `${useMockMode ? 'Mock' : 'OBD-II'} device disconnected successfully`);
             },
           },
         ],
       );
     } else {
-      // Start scanning
-      setShowDeviceModal(true);
-      setDiscoveredDevices([]);
-      setIsScanning(true);
+      // Connect
+      if (useMockMode) {
+        // Mock mode - instant connection
+        setIsConnected(true);
+        mockOBDService.startEngine();
+        Alert.alert('Connected', 'Mock OBD-II device connected. Switch "Simulate Driving" to see dynamic data!');
 
-      try {
-        await bluetoothService.scanForDevices(
-          (device) => {
-            setDiscoveredDevices(prev => {
-              // Avoid duplicates
-              if (!prev.find(d => d.id === device.id)) {
-                return [...prev, device];
-              }
-              return prev;
-            });
-          },
-          10000, // Scan for 10 seconds
-        );
-      } catch (error) {
-        Alert.alert('Error', error instanceof Error ? error.message : 'Failed to scan for devices');
-      } finally {
-        setIsScanning(false);
+        // Read mock error codes
+        try {
+          const codes = await mockOBDService.readErrorCodes();
+          if (codes.length > 0) {
+            const errorCodeObjects = codes
+              .map(code => getErrorCodeDetails(code))
+              .filter((code): code is ErrorCode => code !== null);
+            setErrorCodes(errorCodeObjects);
+          } else {
+            setErrorCodes([]);
+          }
+        } catch (error) {
+          console.error('Error reading mock codes:', error);
+        }
+      } else {
+        // Real Bluetooth mode - scan for devices
+        setShowDeviceModal(true);
+        setDiscoveredDevices([]);
+        setIsScanning(true);
+
+        try {
+          await bluetoothService.scanForDevices(
+            (device) => {
+              setDiscoveredDevices(prev => {
+                // Avoid duplicates
+                if (!prev.find(d => d.id === device.id)) {
+                  return [...prev, device];
+                }
+                return prev;
+              });
+            },
+            10000, // Scan for 10 seconds
+          );
+        } catch (error) {
+          Alert.alert('Error', error instanceof Error ? error.message : 'Failed to scan for devices');
+        } finally {
+          setIsScanning(false);
+        }
       }
     }
   };
@@ -177,7 +208,9 @@ export const DiagnosticsScreen: React.FC<DiagnosticsScreenProps> = () => {
           onPress: async () => {
             if (isConnected) {
               try {
-                const success = await bluetoothService.clearErrorCodes();
+                const success = useMockMode
+                  ? await mockOBDService.clearErrorCodes()
+                  : await bluetoothService.clearErrorCodes();
                 if (success) {
                   setErrorCodes([]);
                   Alert.alert('Success', 'Error codes cleared successfully');
@@ -188,9 +221,9 @@ export const DiagnosticsScreen: React.FC<DiagnosticsScreenProps> = () => {
                 Alert.alert('Error', error instanceof Error ? error.message : 'Failed to clear codes');
               }
             } else {
-              // Demo mode
+              // Not connected
               setErrorCodes([]);
-              Alert.alert('Success', 'Error codes cleared (demo mode)');
+              Alert.alert('Success', 'Error codes cleared');
             }
           },
         },
@@ -200,12 +233,65 @@ export const DiagnosticsScreen: React.FC<DiagnosticsScreenProps> = () => {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      {/* Mode Selection */}
+      <View style={styles.modeCard}>
+        <Text style={styles.modeTitle}>Testing Mode</Text>
+
+        {/* Mock Mode Toggle */}
+        <View style={styles.toggleRow}>
+          <View style={styles.toggleInfo}>
+            <Text style={styles.toggleLabel}>Use Mock OBD Device</Text>
+            <Text style={styles.toggleSubtext}>
+              {useMockMode ? 'Testing with simulated data' : 'Connect to real Bluetooth device'}
+            </Text>
+          </View>
+          <Switch
+            value={useMockMode}
+            onValueChange={(value) => {
+              if (isConnected) {
+                Alert.alert('Disconnect First', 'Please disconnect from the current device before changing modes.');
+              } else {
+                setUseMockMode(value);
+              }
+            }}
+            trackColor={{false: colors.textSecondary, true: colors.primary}}
+            thumbColor={colors.surface}
+          />
+        </View>
+
+        {/* Driving Simulation Toggle (only visible in mock mode when connected) */}
+        {useMockMode && isConnected && (
+          <View style={[styles.toggleRow, {marginTop: spacing.sm, borderTopWidth: 1, borderTopColor: colors.borderLight, paddingTop: spacing.sm}]}>
+            <View style={styles.toggleInfo}>
+              <Text style={styles.toggleLabel}>Simulate Driving</Text>
+              <Text style={styles.toggleSubtext}>
+                {mockOBDService.getEngineState().isDriving ? 'Vehicle in motion (dynamic data)' : 'Vehicle at idle'}
+              </Text>
+            </View>
+            <Switch
+              value={mockOBDService.getEngineState().isDriving}
+              onValueChange={(value) => {
+                if (value) {
+                  mockOBDService.startDriving();
+                } else {
+                  mockOBDService.stopDriving();
+                }
+              }}
+              trackColor={{false: colors.textSecondary, true: colors.success}}
+              thumbColor={colors.surface}
+            />
+          </View>
+        )}
+      </View>
+
       {/* Connection Status */}
       <View style={styles.statusCard}>
         <Text style={styles.statusLabel}>OBD-II Status</Text>
         <View style={styles.statusRow}>
           <View style={[styles.statusDot, {backgroundColor: isConnected ? colors.success : colors.textSecondary}]} />
-          <Text style={styles.statusText}>{isConnected ? 'Connected' : 'Not Connected'}</Text>
+          <Text style={styles.statusText}>
+            {isConnected ? `Connected ${useMockMode ? '(Mock)' : '(Real)'}` : 'Not Connected'}
+          </Text>
         </View>
         <TouchableOpacity style={styles.connectButton} onPress={handleConnectOBD}>
           <Text style={styles.connectButtonText}>{isConnected ? 'Disconnect' : 'Connect Device'}</Text>
@@ -385,6 +471,38 @@ const styles = StyleSheet.create({
   content: {
     padding: spacing.md,
     paddingBottom: 100,
+  },
+  modeCard: {
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+    ...shadows.sm,
+  },
+  modeTitle: {
+    fontSize: typography.fontSize.lg,
+    fontWeight: typography.fontWeight.bold,
+    color: colors.text,
+    marginBottom: spacing.md,
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  toggleInfo: {
+    flex: 1,
+    marginRight: spacing.md,
+  },
+  toggleLabel: {
+    fontSize: typography.fontSize.md,
+    fontWeight: typography.fontWeight.semibold,
+    color: colors.text,
+    marginBottom: spacing.xs,
+  },
+  toggleSubtext: {
+    fontSize: typography.fontSize.sm,
+    color: colors.textSecondary,
   },
   statusCard: {
     backgroundColor: colors.surface,
