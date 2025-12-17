@@ -1,0 +1,10 @@
+// Debug configuration overrides
+// Copy this file to Debug.xcconfig and update with your team ID
+
+// Your Apple Developer Team ID
+// Find it at: https://developer.apple.com/account (Membership section)
+// Or in Xcode: Preferences -> Accounts -> Select your Apple ID -> View Details
+DEVELOPMENT_TEAM = YOUR_TEAM_ID_HERE
+
+// Optional: Override bundle identifier if needed
+// PRODUCT_BUNDLE_IDENTIFIER = com.jasmineerkel.obddiagnosticapp
