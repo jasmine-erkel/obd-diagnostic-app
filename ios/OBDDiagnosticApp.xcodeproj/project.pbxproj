@@ -256,13 +256,12 @@
 		13B07F941A680F5B00A75B9A /* Debug */ = {
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 913747C4A8488C8094832B70 /* Pods-OBDDiagnosticApp.debug.xcconfig */;
-			/* Local config overrides (gitignored): Config/Debug.xcconfig */
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "8U6N58MTLU";
+				DEVELOPMENT_TEAM = MC3KGY63CP;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = OBDDiagnosticApp/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
@@ -276,7 +275,7 @@
 					"-ObjC",
 					"-lc++",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.jasmineerkel.obddiagnosticapp;
+				PRODUCT_BUNDLE_IDENTIFIER = com.joshuaerkel.obddiagnosticapp;
 				PRODUCT_NAME = OBDDiagnosticApp;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
@@ -292,7 +291,7 @@
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "8U6N58MTLU";
+				DEVELOPMENT_TEAM = MC3KGY63CP;
 				INFOPLIST_FILE = OBDDiagnosticApp/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -305,7 +304,7 @@
 					"-ObjC",
 					"-lc++",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.jasmineerkel.obddiagnosticapp;
+				PRODUCT_BUNDLE_IDENTIFIER = com.joshuaerkel.obddiagnosticapp;
 				PRODUCT_NAME = OBDDiagnosticApp;
 				SWIFT_VERSION = 5.0;
 				VERSIONING_SYSTEM = "apple-generic";
