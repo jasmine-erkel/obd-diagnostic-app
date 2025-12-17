@@ -25,7 +25,7 @@ Or open Xcode and press Cmd+R.
 ## Your Info (Auto-Configured)
 
 - **Team ID**: MC3KGY63CP
-- **Bundle ID**: com.jasmineerkel.obddiagnosticapp
+- **Bundle ID**: com.joshuaerkel.obddiagnosticapp
 - **Detection**: Via your git email or username
 
 ## That's All!

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, {useCallback} from 'react';
 import {
   View,
   Text,
@@ -31,7 +31,7 @@ export const VehicleSelector: React.FC<VehicleSelectorProps> = ({
     onClose();
   };
 
-  const renderVehicleItem = ({item}: {item: Vehicle}) => {
+  const renderVehicleItem = useCallback(({item}: {item: Vehicle}) => {
     const isSelected = item.id === selectedVehicleId;
     const displayName = item.nickname || `${item.make || ''} ${item.model || ''}`.trim() || 'Unknown Vehicle';
     const details = [item.year, item.make, item.model].filter(Boolean).join(' ') || 'No details';
@@ -63,7 +63,7 @@ export const VehicleSelector: React.FC<VehicleSelectorProps> = ({
         )}
       </TouchableOpacity>
     );
-  };
+  }, [selectedVehicleId]);
 
   return (
     <Modal
@@ -108,6 +108,12 @@ export const VehicleSelector: React.FC<VehicleSelectorProps> = ({
           }
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
+          // Performance optimizations
+          removeClippedSubviews={true}
+          maxToRenderPerBatch={10}
+          updateCellsBatchingPeriod={50}
+          initialNumToRender={10}
+          windowSize={10}
         />
       </SafeAreaView>
     </Modal>

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, {memo} from 'react';
 import {View, Text, StyleSheet, TouchableOpacity, Image} from 'react-native';
 import {Vehicle} from '../../types/vehicle';
 import {colors, spacing, typography, borderRadius, shadows} from '../../constants/theme';
@@ -8,7 +8,7 @@ interface VehicleCardProps {
   onPress: () => void;
 }
 
-export const VehicleCard: React.FC<VehicleCardProps> = ({vehicle, onPress}) => {
+export const VehicleCard: React.FC<VehicleCardProps> = memo(({vehicle, onPress}) => {
   const displayName = vehicle.nickname || `${vehicle.make || ''} ${vehicle.model || ''}`.trim() || 'Unknown Vehicle';
   const hasAllBasicInfo = vehicle.make && vehicle.model && vehicle.year;
   const hasValidVin = vehicle.vin && vehicle.vin.length === 17;
@@ -22,7 +22,11 @@ export const VehicleCard: React.FC<VehicleCardProps> = ({vehicle, onPress}) => {
         <View style={styles.cardHeader}>
           <View style={styles.photoContainer}>
             {vehicle.photo ? (
-              <Image source={{uri: vehicle.photo}} style={styles.photo} />
+              <Image
+                source={{uri: vehicle.photo}}
+                style={styles.photo}
+                resizeMode="cover"
+              />
             ) : (
               <View style={styles.photoPlaceholder}>
                 <Text style={styles.photoPlaceholderText}>🚗</Text>
@@ -78,7 +82,7 @@ export const VehicleCard: React.FC<VehicleCardProps> = ({vehicle, onPress}) => {
       </View>
     </TouchableOpacity>
   );
-};
+});
 
 const styles = StyleSheet.create({
   card: {

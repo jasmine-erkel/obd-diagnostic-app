@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useState, useCallback, memo} from 'react';
 import {
   View,
   Text,
@@ -150,7 +150,7 @@ export const MaintenanceRecordsScreen: React.FC<MaintenanceRecordsScreenProps> =
 
   const totalSpent = records.reduce((sum, record) => sum + (record.cost || 0), 0);
 
-  const renderRecord = ({item}: {item: MaintenanceRecord}) => {
+  const renderRecord = useCallback(({item}: {item: MaintenanceRecord}) => {
     const icon = MaintenanceTypeIcons[item.type];
     const typeLabel = MaintenanceTypeLabels[item.type];
 
@@ -217,7 +217,7 @@ export const MaintenanceRecordsScreen: React.FC<MaintenanceRecordsScreenProps> =
         )}
       </Card>
     );
-  };
+  }, []);
 
   const renderPrintPreview = () => (
     <Modal
@@ -368,6 +368,17 @@ export const MaintenanceRecordsScreen: React.FC<MaintenanceRecordsScreenProps> =
         renderItem={renderRecord}
         keyExtractor={item => item.id}
         contentContainerStyle={styles.listContent}
+        // Performance optimizations
+        removeClippedSubviews={true}
+        maxToRenderPerBatch={10}
+        updateCellsBatchingPeriod={50}
+        initialNumToRender={10}
+        windowSize={10}
+        getItemLayout={(data, index) => ({
+          length: 200, // Approximate item height
+          offset: 200 * index,
+          index,
+        })}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyIcon}>📋</Text>

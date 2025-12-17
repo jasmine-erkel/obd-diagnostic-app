@@ -1,19 +1,6 @@
 import React from 'react';
-import {
-  View,
-  Text,
-  Image,
-  StyleSheet,
-  TouchableOpacity,
-  Alert,
-  Platform,
-} from 'react-native';
-import {
-  launchCamera,
-  launchImageLibrary,
-  ImagePickerResponse,
-  MediaType,
-} from 'react-native-image-picker';
+import {View, Text, StyleSheet, TouchableOpacity, Image, Alert, Platform} from 'react-native';
+import {launchCamera, launchImageLibrary, ImagePickerResponse} from 'react-native-image-picker';
 import {colors, spacing, typography, borderRadius, shadows} from '../../constants/theme';
 
 interface ImagePickerProps {
@@ -21,163 +8,122 @@ interface ImagePickerProps {
   currentImage?: string;
 }
 
-export const ImagePicker: React.FC<ImagePickerProps> = ({
-  onImageSelected,
-  currentImage,
-}) => {
-  const handleImageResponse = (response: ImagePickerResponse) => {
-    if (response.didCancel) {
-      return;
-    }
+export const ImagePicker: React.FC<ImagePickerProps> = ({onImageSelected, currentImage}) => {
+  const handleTakePhoto = async () => {
+    try {
+      const result = await launchCamera({
+        mediaType: 'photo',
+        quality: 0.8,
+        saveToPhotos: true,
+      });
 
-    if (response.errorCode) {
-      Alert.alert('Error', response.errorMessage || 'Failed to pick image');
-      return;
-    }
-
-    if (response.assets && response.assets.length > 0) {
-      const uri = response.assets[0].uri;
-      if (uri) {
-        onImageSelected(uri);
+      if (result.assets && result.assets[0]?.uri) {
+        onImageSelected(result.assets[0].uri);
       }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to take photo');
     }
   };
 
-  const handleTakePhoto = () => {
-    const options = {
-      mediaType: 'photo' as MediaType,
-      saveToPhotos: false,
-    };
+  const handleChooseFromLibrary = async () => {
+    try {
+      const result = await launchImageLibrary({
+        mediaType: 'photo',
+        quality: 0.8,
+      });
 
-    launchCamera(options, handleImageResponse);
-  };
-
-  const handleChooseFromLibrary = () => {
-    const options = {
-      mediaType: 'photo' as MediaType,
-    };
-
-    launchImageLibrary(options, handleImageResponse);
-  };
-
-  const handleImagePress = () => {
-    Alert.alert(
-      'Change Photo',
-      'Choose how to update the vehicle photo',
-      [
-        {
-          text: 'Take Photo',
-          onPress: handleTakePhoto,
-        },
-        {
-          text: 'Choose from Library',
-          onPress: handleChooseFromLibrary,
-        },
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-      ],
-      {cancelable: true},
-    );
+      if (result.assets && result.assets[0]?.uri) {
+        onImageSelected(result.assets[0].uri);
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to select photo');
+    }
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>Vehicle Photo (Optional)</Text>
-
-      {currentImage ? (
-        <TouchableOpacity
-          style={styles.imagePreviewContainer}
-          onPress={handleImagePress}
-          activeOpacity={0.8}>
-          <Image source={{uri: currentImage}} style={styles.imagePreview} />
-          <View style={styles.changePhotoOverlay}>
-            <Text style={styles.changePhotoText}>Tap to change photo</Text>
-          </View>
-        </TouchableOpacity>
-      ) : (
-        <View style={styles.buttonContainer}>
-          <TouchableOpacity
-            style={styles.button}
-            onPress={handleTakePhoto}
-            activeOpacity={0.7}>
-            <Text style={styles.buttonIcon}>📷</Text>
-            <Text style={styles.buttonText}>Take Photo</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.button}
-            onPress={handleChooseFromLibrary}
-            activeOpacity={0.7}>
-            <Text style={styles.buttonIcon}>🖼️</Text>
-            <Text style={styles.buttonText}>Choose from Library</Text>
-          </TouchableOpacity>
+      {currentImage && (
+        <View style={styles.previewContainer}>
+          <Text style={styles.previewLabel}>Current Photo</Text>
+          <Image source={{uri: currentImage}} style={styles.preview} resizeMode="cover" />
         </View>
       )}
+
+      <View style={styles.buttonsContainer}>
+        <TouchableOpacity style={styles.button} onPress={handleTakePhoto} activeOpacity={0.7}>
+          <View style={styles.buttonIcon}>
+            <Text style={styles.buttonIconText}>📷</Text>
+          </View>
+          <Text style={styles.buttonTitle}>Take Photo</Text>
+          <Text style={styles.buttonSubtitle}>Use camera</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.button}
+          onPress={handleChooseFromLibrary}
+          activeOpacity={0.7}>
+          <View style={styles.buttonIcon}>
+            <Text style={styles.buttonIconText}>🖼️</Text>
+          </View>
+          <Text style={styles.buttonTitle}>Choose from Library</Text>
+          <Text style={styles.buttonSubtitle}>Select existing photo</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
+  },
+  previewContainer: {
     marginBottom: spacing.lg,
   },
-  label: {
+  previewLabel: {
     fontSize: typography.fontSize.md,
-    fontWeight: typography.fontWeight.medium,
+    fontWeight: typography.fontWeight.semibold,
     color: colors.text,
     marginBottom: spacing.sm,
   },
-  buttonContainer: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-  },
-  button: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.primary + '15',
-    borderRadius: borderRadius.md,
-    padding: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.primary + '30',
-  },
-  buttonIcon: {
-    fontSize: 20,
-    marginRight: spacing.xs,
-  },
-  buttonText: {
-    fontSize: typography.fontSize.sm,
-    fontWeight: typography.fontWeight.medium,
-    color: colors.primary,
-  },
-  imagePreviewContainer: {
+  preview: {
     width: '100%',
     height: 200,
     borderRadius: borderRadius.md,
-    overflow: 'hidden',
     backgroundColor: colors.background,
-    ...shadows.md,
   },
-  imagePreview: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
+  buttonsContainer: {
+    gap: spacing.md,
   },
-  changePhotoOverlay: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    paddingVertical: spacing.sm,
+  button: {
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.md,
+    padding: spacing.lg,
     alignItems: 'center',
+    ...shadows.sm,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
   },
-  changePhotoText: {
+  buttonIcon: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: colors.primary + '15',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
+  buttonIconText: {
+    fontSize: 32,
+  },
+  buttonTitle: {
+    fontSize: typography.fontSize.lg,
+    fontWeight: typography.fontWeight.bold,
+    color: colors.text,
+    marginBottom: spacing.xs / 2,
+  },
+  buttonSubtitle: {
     fontSize: typography.fontSize.sm,
-    fontWeight: typography.fontWeight.medium,
-    color: colors.surface,
+    color: colors.textSecondary,
   },
 });

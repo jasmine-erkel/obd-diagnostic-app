@@ -1,4 +1,4 @@
-import React, {useState, useEffect} from 'react';
+import React, {useState, useEffect, useCallback} from 'react';
 import {View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Modal, FlatList, ActivityIndicator, Switch} from 'react-native';
 import {colors, spacing, typography, borderRadius, shadows} from '../constants/theme';
 import {DiagnosticsScreenProps} from '../navigation/types';
@@ -235,6 +235,16 @@ export const DiagnosticsScreen: React.FC<DiagnosticsScreenProps> = () => {
     );
   };
 
+  const renderDeviceItem = useCallback(({item}: {item: OBDDevice}) => (
+    <TouchableOpacity
+      style={styles.deviceItem}
+      onPress={() => handleDeviceSelect(item)}>
+      <Text style={styles.deviceName}>{item.name || 'Unknown Device'}</Text>
+      <Text style={styles.deviceId}>{item.id}</Text>
+      {item.rssi && <Text style={styles.deviceRssi}>Signal: {item.rssi} dBm</Text>}
+    </TouchableOpacity>
+  ), []);
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       {/* Mode Selection */}
@@ -435,21 +445,19 @@ export const DiagnosticsScreen: React.FC<DiagnosticsScreenProps> = () => {
             <FlatList
               data={discoveredDevices}
               keyExtractor={(item) => item.id}
-              renderItem={({item}) => (
-                <TouchableOpacity
-                  style={styles.deviceItem}
-                  onPress={() => handleDeviceSelect(item)}>
-                  <Text style={styles.deviceName}>{item.name || 'Unknown Device'}</Text>
-                  <Text style={styles.deviceId}>{item.id}</Text>
-                  {item.rssi && <Text style={styles.deviceRssi}>Signal: {item.rssi} dBm</Text>}
-                </TouchableOpacity>
-              )}
+              renderItem={renderDeviceItem}
               ListEmptyComponent={
                 !isScanning ? (
                   <Text style={styles.emptyText}>No devices found. Make sure your OBD-II device is powered on.</Text>
                 ) : null
               }
               style={styles.deviceList}
+              // Performance optimizations
+              removeClippedSubviews={true}
+              maxToRenderPerBatch={10}
+              updateCellsBatchingPeriod={50}
+              initialNumToRender={10}
+              windowSize={10}
             />
 
             <TouchableOpacity

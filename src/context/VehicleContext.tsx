@@ -1,4 +1,4 @@
-import React, {createContext, useContext, useState, useEffect, ReactNode} from 'react';
+import React, {createContext, useContext, useState, useEffect, ReactNode, useMemo, useCallback} from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {Vehicle} from '../types/vehicle';
 import {vehicleStorage} from '../services/vehicleStorage';
@@ -25,12 +25,13 @@ export const VehicleProvider: React.FC<{children: ReactNode}> = ({children}) => 
   const [loading, setLoading] = useState(true);
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
 
-  // Computed: Get the selected vehicle object
-  const selectedVehicle = selectedVehicleId
-    ? vehicles.find(v => v.id === selectedVehicleId) || null
-    : null;
+  // Computed: Get the selected vehicle object (memoized)
+  const selectedVehicle = useMemo(
+    () => (selectedVehicleId ? vehicles.find(v => v.id === selectedVehicleId) || null : null),
+    [selectedVehicleId, vehicles]
+  );
 
-  const refreshVehicles = async () => {
+  const refreshVehicles = useCallback(async () => {
     setLoading(true);
     try {
       const loadedVehicles = await vehicleStorage.getAllVehicles();
@@ -40,41 +41,49 @@ export const VehicleProvider: React.FC<{children: ReactNode}> = ({children}) => 
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const addVehicle = async (vehicle: Vehicle): Promise<boolean> => {
+  const addVehicle = useCallback(async (vehicle: Vehicle): Promise<boolean> => {
     const success = await vehicleStorage.saveVehicle(vehicle);
     if (success) {
-      await refreshVehicles();
+      const loadedVehicles = await vehicleStorage.getAllVehicles();
+      setVehicles(loadedVehicles);
     }
     return success;
-  };
+  }, []);
 
-  const updateVehicle = async (id: string, updates: Partial<Vehicle>): Promise<boolean> => {
+  const updateVehicle = useCallback(async (id: string, updates: Partial<Vehicle>): Promise<boolean> => {
     const success = await vehicleStorage.updateVehicle(id, updates);
     if (success) {
-      await refreshVehicles();
+      const loadedVehicles = await vehicleStorage.getAllVehicles();
+      setVehicles(loadedVehicles);
     }
     return success;
-  };
+  }, []);
 
-  const deleteVehicle = async (id: string): Promise<boolean> => {
+  const deleteVehicle = useCallback(async (id: string): Promise<boolean> => {
     const success = await vehicleStorage.deleteVehicle(id);
     if (success) {
       // Auto-clear selection if deleting the selected vehicle
       if (selectedVehicleId === id) {
-        await selectVehicle(null);
+        setSelectedVehicleId(null);
+        try {
+          await AsyncStorage.removeItem(SELECTED_VEHICLE_KEY);
+        } catch (error) {
+          console.error('Error removing selected vehicle:', error);
+        }
       }
-      await refreshVehicles();
+      const loadedVehicles = await vehicleStorage.getAllVehicles();
+      setVehicles(loadedVehicles);
     }
     return success;
-  };
+  }, [selectedVehicleId]);
 
-  const getVehicle = (id: string): Vehicle | undefined => {
+  const getVehicle = useCallback((id: string): Vehicle | undefined => {
     return vehicles.find(v => v.id === id);
-  };
+  }, [vehicles]);
 
-  const selectVehicle = async (id: string | null): Promise<void> => {
+  const selectVehicle = useCallback(async (id: string | null): Promise<void> => {
     setSelectedVehicleId(id);
     try {
       if (id === null) {
@@ -85,7 +94,7 @@ export const VehicleProvider: React.FC<{children: ReactNode}> = ({children}) => 
     } catch (error) {
       console.error('Error saving selected vehicle:', error);
     }
-  };
+  }, []);
 
   useEffect(() => {
     refreshVehicles();
@@ -106,20 +115,24 @@ export const VehicleProvider: React.FC<{children: ReactNode}> = ({children}) => 
     loadSelectedVehicle();
   }, []);
 
+  const value = useMemo(
+    () => ({
+      vehicles,
+      loading,
+      selectedVehicleId,
+      selectedVehicle,
+      refreshVehicles,
+      addVehicle,
+      updateVehicle,
+      deleteVehicle,
+      getVehicle,
+      selectVehicle,
+    }),
+    [vehicles, loading, selectedVehicleId, selectedVehicle, refreshVehicles, addVehicle, updateVehicle, deleteVehicle, getVehicle, selectVehicle]
+  );
+
   return (
-    <VehicleContext.Provider
-      value={{
-        vehicles,
-        loading,
-        selectedVehicleId,
-        selectedVehicle,
-        refreshVehicles,
-        addVehicle,
-        updateVehicle,
-        deleteVehicle,
-        getVehicle,
-        selectVehicle,
-      }}>
+    <VehicleContext.Provider value={value}>
       {children}
     </VehicleContext.Provider>
   );

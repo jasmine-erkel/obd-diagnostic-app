@@ -1,4 +1,4 @@
-import React, {ReactNode} from 'react';
+import React, {ReactNode, memo} from 'react';
 import {View, StyleSheet, ViewStyle} from 'react-native';
 import {colors, spacing, borderRadius, shadows} from '../../constants/theme';
 
@@ -8,7 +8,7 @@ interface CardProps {
   variant?: 'default' | 'elevated' | 'outlined';
 }
 
-export const Card: React.FC<CardProps> = ({
+export const Card: React.FC<CardProps> = memo(({
   children,
   style,
   variant = 'default',
@@ -18,7 +18,7 @@ export const Card: React.FC<CardProps> = ({
       {children}
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   card: {

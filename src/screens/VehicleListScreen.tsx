@@ -1,10 +1,11 @@
-import React from 'react';
+import React, {useCallback} from 'react';
 import {View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, ActivityIndicator} from 'react-native';
 import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 import {colors, spacing, typography, shadows} from '../constants/theme';
 import {VehicleListScreenProps} from '../navigation/types';
 import {useVehicles} from '../context/VehicleContext';
 import {VehicleCard} from '../components/vehicles/VehicleCard';
+import {VehicleCardSkeleton} from '../components/vehicles/VehicleCardSkeleton';
 
 export const VehicleListScreen: React.FC<VehicleListScreenProps> = ({navigation}) => {
   const {vehicles, loading, refreshVehicles} = useVehicles();
@@ -25,14 +26,9 @@ export const VehicleListScreen: React.FC<VehicleListScreenProps> = ({navigation}
     navigation.navigate('VehicleDetail', {vehicleId});
   };
 
-  if (loading && vehicles.length === 0) {
-    return (
-      <SafeAreaView style={styles.centerContainer} edges={['top']}>
-        <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={styles.loadingText}>Loading vehicles...</Text>
-      </SafeAreaView>
-    );
-  }
+  const renderVehicleItem = useCallback(({item}: {item: any}) => (
+    <VehicleCard vehicle={item} onPress={() => handleVehiclePress(item.id)} />
+  ), []);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -41,28 +37,40 @@ export const VehicleListScreen: React.FC<VehicleListScreenProps> = ({navigation}
         <Text style={styles.headerSubtitle}>{vehicles.length} {vehicles.length === 1 ? 'vehicle' : 'vehicles'}</Text>
       </View>
 
-      <FlatList
-        data={vehicles}
-        keyExtractor={item => item.id}
-        renderItem={({item}) => (
-          <VehicleCard vehicle={item} onPress={() => handleVehiclePress(item.id)} />
-        )}
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyTitle}>No vehicles yet</Text>
-            <Text style={styles.emptySubtitle}>
-              Tap the + button below to add your first vehicle
-            </Text>
-          </View>
-        }
-        contentContainerStyle={[
-          styles.listContent,
-          {paddingBottom: insets.bottom + 120}
-        ]}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
-        }
-      />
+      {loading && vehicles.length === 0 ? (
+        <View style={[styles.listContent, {paddingBottom: insets.bottom + 120}]}>
+          <VehicleCardSkeleton />
+          <VehicleCardSkeleton />
+          <VehicleCardSkeleton />
+        </View>
+      ) : (
+        <FlatList
+          data={vehicles}
+          keyExtractor={item => item.id}
+          renderItem={renderVehicleItem}
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyTitle}>No vehicles yet</Text>
+              <Text style={styles.emptySubtitle}>
+                Tap the + button below to add your first vehicle
+              </Text>
+            </View>
+          }
+          contentContainerStyle={[
+            styles.listContent,
+            {paddingBottom: insets.bottom + 120}
+          ]}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
+          }
+          // Performance optimizations
+          removeClippedSubviews={true}
+          maxToRenderPerBatch={10}
+          updateCellsBatchingPeriod={50}
+          initialNumToRender={10}
+          windowSize={10}
+        />
+      )}
 
       {/* Floating Action Button */}
       <TouchableOpacity

@@ -82,7 +82,11 @@ export const VehicleDetailScreen: React.FC<VehicleDetailScreenProps> = ({route, 
         {/* Vehicle Photo */}
         <View style={styles.photoSection}>
           {vehicle.photo ? (
-            <Image source={{uri: vehicle.photo}} style={styles.vehiclePhoto} />
+            <Image
+              source={{uri: vehicle.photo}}
+              style={styles.vehiclePhoto}
+              resizeMode="cover"
+            />
           ) : (
             <View style={styles.photoPlaceholder}>
               <Text style={styles.photoPlaceholderText}>🚗</Text>
