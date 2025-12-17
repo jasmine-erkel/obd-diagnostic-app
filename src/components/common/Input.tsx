@@ -1,4 +1,4 @@
-import React from 'react';
+import React, {useState} from 'react';
 import {View, TextInput, Text, StyleSheet, TextInputProps} from 'react-native';
 import {colors, spacing, typography, borderRadius} from '../../constants/theme';
 
@@ -15,6 +15,8 @@ export const Input: React.FC<InputProps> = ({
   style,
   ...props
 }) => {
+  const [isFocused, setIsFocused] = useState(false);
+
   return (
     <View style={styles.container}>
       {label && (
@@ -24,8 +26,21 @@ export const Input: React.FC<InputProps> = ({
         </Text>
       )}
       <TextInput
-        style={[styles.input, error && styles.inputError, style]}
+        style={[
+          styles.input,
+          isFocused && styles.inputFocused,
+          error && styles.inputError,
+          style
+        ]}
         placeholderTextColor={colors.textTertiary}
+        onFocus={(e) => {
+          setIsFocused(true);
+          props.onFocus?.(e);
+        }}
+        onBlur={(e) => {
+          setIsFocused(false);
+          props.onBlur?.(e);
+        }}
         {...props}
       />
       {error && <Text style={styles.errorText}>{error}</Text>}
@@ -38,30 +53,38 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   label: {
-    fontSize: typography.fontSize.md,
+    fontSize: typography.fontSize.sm,
     fontWeight: typography.fontWeight.semibold,
     color: colors.text,
     marginBottom: spacing.xs,
+    letterSpacing: 0.3,
   },
   required: {
     color: colors.error,
   },
   input: {
     backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.borderLight,
+    borderWidth: 2,
+    borderColor: colors.border,
     borderRadius: borderRadius.md,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    paddingVertical: spacing.sm + 4,
     fontSize: typography.fontSize.md,
     color: colors.text,
+    minHeight: 48,
+  },
+  inputFocused: {
+    borderColor: colors.primary,
+    backgroundColor: colors.surface,
   },
   inputError: {
     borderColor: colors.error,
+    backgroundColor: colors.error + '08',
   },
   errorText: {
     fontSize: typography.fontSize.sm,
     color: colors.error,
     marginTop: spacing.xs,
+    fontWeight: typography.fontWeight.medium,
   },
 });

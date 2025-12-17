@@ -1,37 +1,47 @@
 export const colors = {
-  // Primary colors
-  primary: '#007AFF', // iOS blue
-  primaryDark: '#0051D5',
-  primaryLight: '#4DA3FF',
+  // Primary colors - Automotive Red
+  primary: '#DC2626', // Racing red
+  primaryDark: '#991B1B',
+  primaryLight: '#EF4444',
 
-  // Secondary colors
-  secondary: '#5856D6', // Purple
-  accent: '#FF9500', // Orange
+  // Secondary colors - Automotive inspired
+  secondary: '#1F2937', // Carbon gray
+  accent: '#F59E0B', // Amber warning
+  steel: '#64748B', // Steel blue-gray
 
   // Status colors
-  success: '#34C759',
-  warning: '#FF9500',
-  error: '#FF3B30',
-  info: '#007AFF',
+  success: '#10B981', // Modern green
+  warning: '#F59E0B', // Amber
+  error: '#DC2626', // Matches primary for OBD error focus
+  info: '#3B82F6', // Electric blue
+  critical: '#7F1D1D', // Deep red for critical errors
 
-  // Neutral colors
-  background: '#F2F2F7',
+  // Neutral colors - Darker, more sophisticated
+  background: '#F8FAFC', // Lighter gray
+  backgroundDark: '#0F172A', // Dark mode background
   surface: '#FFFFFF',
+  surfaceElevated: '#F1F5F9',
   card: '#FFFFFF',
 
   // Text colors
-  text: '#000000',
-  textSecondary: '#8E8E93',
-  textTertiary: '#C7C7CC',
+  text: '#0F172A', // Darker, better contrast
+  textSecondary: '#64748B',
+  textTertiary: '#94A3B8',
+  textLight: '#FFFFFF',
 
   // Border colors
-  border: '#C6C6C8',
-  borderLight: '#E5E5EA',
+  border: '#CBD5E1',
+  borderLight: '#E2E8F0',
+  borderDark: '#475569',
 
   // Tab bar
-  tabBarActive: '#007AFF',
-  tabBarInactive: '#8E8E93',
-  tabBarBackground: '#F9F9F9',
+  tabBarActive: '#DC2626',
+  tabBarInactive: '#94A3B8',
+  tabBarBackground: '#FFFFFF',
+
+  // Gradients (represented as hex, will use in LinearGradient)
+  gradientStart: '#DC2626',
+  gradientEnd: '#991B1D',
 };
 
 export const spacing = {
