@@ -4,10 +4,12 @@
   "private": true,
   "scripts": {
     "android": "react-native run-android",
-    "ios": "react-native run-ios",
+    "ios": "npm run setup:ios && react-native run-ios",
     "lint": "eslint .",
     "start": "react-native start",
-    "test": "jest"
+    "test": "jest",
+    "setup:ios": "cd ios/scripts && ./auto-configure-signing.sh && cd ../..",
+    "postinstall": "npm run setup:ios || true"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "^2.2.0",

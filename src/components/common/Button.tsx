@@ -86,18 +86,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     ...shadows.sm,
+    minHeight: 48,
   },
   size_small: {
-    paddingVertical: spacing.xs,
+    paddingVertical: spacing.xs + 2,
     paddingHorizontal: spacing.md,
+    minHeight: 40,
   },
   size_medium: {
-    paddingVertical: spacing.sm,
+    paddingVertical: spacing.sm + 2,
     paddingHorizontal: spacing.lg,
   },
   size_large: {
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.xl,
+    minHeight: 56,
   },
   variant_primary: {
     backgroundColor: colors.primary,
@@ -112,14 +115,16 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     borderWidth: 2,
     borderColor: colors.primary,
+    shadowOpacity: 0,
   },
   disabled: {
-    backgroundColor: colors.borderLight,
-    opacity: 0.6,
+    backgroundColor: colors.border,
+    opacity: 0.5,
   },
   text: {
-    fontWeight: typography.fontWeight.semibold,
-    color: colors.surface,
+    fontWeight: typography.fontWeight.bold,
+    color: colors.textLight,
+    letterSpacing: 0.5,
   },
   text_small: {
     fontSize: typography.fontSize.sm,
