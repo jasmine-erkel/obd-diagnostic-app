@@ -1,7 +1,6 @@
 import React, {useCallback, useMemo} from 'react';
-import {TouchableOpacity, Text, StyleSheet, ActivityIndicator, ViewStyle, TextStyle, Platform} from 'react-native';
+import {TouchableOpacity, Text, StyleSheet, ActivityIndicator, ViewStyle, TextStyle} from 'react-native';
 import {colors, spacing, typography, borderRadius, shadows} from '../../constants/theme';
-import * as Haptics from 'expo-haptics';
 
 interface ButtonProps {
   title: string;
@@ -51,16 +50,8 @@ export const Button: React.FC<ButtonProps> = ({
     return baseTextStyle;
   }, [variant, size]);
 
-  // Add haptic feedback for better responsiveness
   const handlePress = useCallback(() => {
     if (!disabled && !loading) {
-      // Trigger haptic feedback immediately
-      if (Platform.OS === 'ios') {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      } else {
-        // Android haptic feedback
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      }
       onPress();
     }
   }, [onPress, disabled, loading]);
