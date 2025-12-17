@@ -1,6 +1,7 @@
-import React from 'react';
-import {TouchableOpacity, Text, StyleSheet, ActivityIndicator, ViewStyle, TextStyle} from 'react-native';
+import React, {useCallback, useMemo} from 'react';
+import {TouchableOpacity, Text, StyleSheet, ActivityIndicator, ViewStyle, TextStyle, Platform} from 'react-native';
 import {colors, spacing, typography, borderRadius, shadows} from '../../constants/theme';
+import * as Haptics from 'expo-haptics';
 
 interface ButtonProps {
   title: string;
@@ -23,7 +24,8 @@ export const Button: React.FC<ButtonProps> = ({
   style,
   textStyle,
 }) => {
-  const getButtonStyle = (): ViewStyle => {
+  // Memoize styles to prevent recreation on every render
+  const buttonStyle = useMemo((): ViewStyle => {
     const baseStyle: ViewStyle = {
       ...styles.base,
       ...styles[`size_${size}`],
@@ -34,9 +36,9 @@ export const Button: React.FC<ButtonProps> = ({
     }
 
     return {...baseStyle, ...styles[`variant_${variant}`]};
-  };
+  }, [variant, size, disabled, loading]);
 
-  const getTextStyle = (): TextStyle => {
+  const textStyleComputed = useMemo((): TextStyle => {
     const baseTextStyle: TextStyle = {
       ...styles.text,
       ...styles[`text_${size}`],
@@ -47,18 +49,32 @@ export const Button: React.FC<ButtonProps> = ({
     }
 
     return baseTextStyle;
-  };
+  }, [variant, size]);
+
+  // Add haptic feedback for better responsiveness
+  const handlePress = useCallback(() => {
+    if (!disabled && !loading) {
+      // Trigger haptic feedback immediately
+      if (Platform.OS === 'ios') {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      } else {
+        // Android haptic feedback
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      }
+      onPress();
+    }
+  }, [onPress, disabled, loading]);
 
   return (
     <TouchableOpacity
-      style={[getButtonStyle(), style]}
-      onPress={onPress}
+      style={[buttonStyle, style]}
+      onPress={handlePress}
       disabled={disabled || loading}
-      activeOpacity={0.8}>
+      activeOpacity={0.7}>
       {loading ? (
         <ActivityIndicator color={variant === 'outline' ? colors.primary : colors.surface} />
       ) : (
-        <Text style={[getTextStyle(), textStyle]}>{title}</Text>
+        <Text style={[textStyleComputed, textStyle]}>{title}</Text>
       )}
     </TouchableOpacity>
   );

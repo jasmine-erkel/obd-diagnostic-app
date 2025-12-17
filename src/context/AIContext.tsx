@@ -1,5 +1,6 @@
-import React, {createContext, useContext, useState, ReactNode} from 'react';
+import React, {createContext, useContext, useState, ReactNode, useMemo, useCallback} from 'react';
 import {ChatMessage, AIConfig} from '../types/ai';
+import {Vehicle} from '../types/vehicle';
 import {aiService} from '../services/aiService';
 import {generateUUID} from '../utils/uuid';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -10,7 +11,7 @@ const AI_CONFIG_KEY = '@obd_ai_config';
 interface AIContextType {
   messages: ChatMessage[];
   loading: boolean;
-  sendMessage: (content: string, errorCode?: string) => Promise<void>;
+  sendMessage: (content: string, errorCode?: string, vehicle?: Vehicle | null) => Promise<void>;
   clearHistory: () => Promise<void>;
   loadHistory: () => Promise<void>;
   updateConfig: (config: Partial<AIConfig>) => Promise<void>;
@@ -25,7 +26,7 @@ export const AIProvider: React.FC<{children: ReactNode}> = ({children}) => {
   const [loading, setLoading] = useState(false);
 
   // Load chat history from storage
-  const loadHistory = async () => {
+  const loadHistory = useCallback(async () => {
     try {
       const data = await AsyncStorage.getItem(CHAT_HISTORY_KEY);
       if (data) {
@@ -41,19 +42,19 @@ export const AIProvider: React.FC<{children: ReactNode}> = ({children}) => {
     } catch (error) {
       console.error('Error loading chat history:', error);
     }
-  };
+  }, []);
 
   // Save chat history to storage
-  const saveHistory = async (newMessages: ChatMessage[]) => {
+  const saveHistory = useCallback(async (newMessages: ChatMessage[]) => {
     try {
       await AsyncStorage.setItem(CHAT_HISTORY_KEY, JSON.stringify(newMessages));
     } catch (error) {
       console.error('Error saving chat history:', error);
     }
-  };
+  }, []);
 
   // Send a message
-  const sendMessage = async (content: string, errorCode?: string) => {
+  const sendMessage = useCallback(async (content: string, errorCode?: string, vehicle?: Vehicle | null) => {
     if (!content.trim()) {
       return;
     }
@@ -76,7 +77,7 @@ export const AIProvider: React.FC<{children: ReactNode}> = ({children}) => {
     try {
       // Get AI response (or mock if not configured)
       const response = aiService.isConfigured()
-        ? await aiService.sendMessage(content, errorCode)
+        ? await aiService.sendMessage(content, errorCode, vehicle)
         : aiService.getMockResponse(content, errorCode);
 
       // Add assistant message
@@ -108,42 +109,46 @@ export const AIProvider: React.FC<{children: ReactNode}> = ({children}) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [messages, saveHistory]);
 
   // Clear chat history
-  const clearHistory = async () => {
+  const clearHistory = useCallback(async () => {
     setMessages([]);
     await AsyncStorage.removeItem(CHAT_HISTORY_KEY);
-  };
+  }, []);
 
   // Update AI configuration
-  const updateConfig = async (config: Partial<AIConfig>) => {
+  const updateConfig = useCallback(async (config: Partial<AIConfig>) => {
     aiService.setConfig(config);
     await AsyncStorage.setItem(AI_CONFIG_KEY, JSON.stringify(aiService.config));
-  };
+  }, []);
 
   // Get current configuration
-  const getConfig = (): AIConfig => {
+  const getConfig = useCallback((): AIConfig => {
     return aiService.config;
-  };
+  }, []);
 
   // Check if AI is configured
-  const isConfigured = (): boolean => {
+  const isConfigured = useCallback((): boolean => {
     return aiService.isConfigured();
-  };
+  }, []);
+
+  const value = useMemo(
+    () => ({
+      messages,
+      loading,
+      sendMessage,
+      clearHistory,
+      loadHistory,
+      updateConfig,
+      getConfig,
+      isConfigured,
+    }),
+    [messages, loading, sendMessage, clearHistory, loadHistory, updateConfig, getConfig, isConfigured]
+  );
 
   return (
-    <AIContext.Provider
-      value={{
-        messages,
-        loading,
-        sendMessage,
-        clearHistory,
-        loadHistory,
-        updateConfig,
-        getConfig,
-        isConfigured,
-      }}>
+    <AIContext.Provider value={value}>
       {children}
     </AIContext.Provider>
   );

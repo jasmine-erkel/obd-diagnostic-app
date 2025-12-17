@@ -1,4 +1,4 @@
-import React, {useState, useEffect, useRef} from 'react';
+import React, {useState, useEffect, useRef, useCallback} from 'react';
 import {
   View,
   Text,
@@ -62,7 +62,7 @@ export const AIAssistantScreen: React.FC<AIAssistantScreenProps> = () => {
     );
   };
 
-  const renderMessage = ({item}: {item: ChatMessage}) => {
+  const renderMessage = useCallback(({item}: {item: ChatMessage}) => {
     const isUser = item.role === 'user';
 
     return (
@@ -80,7 +80,7 @@ export const AIAssistantScreen: React.FC<AIAssistantScreenProps> = () => {
         </View>
       </View>
     );
-  };
+  }, []);
 
   const renderEmptyState = () => (
     <View style={styles.emptyContainer}>
@@ -134,6 +134,12 @@ export const AIAssistantScreen: React.FC<AIAssistantScreenProps> = () => {
         keyExtractor={item => item.id}
         contentContainerStyle={styles.messagesContainer}
         ListEmptyComponent={renderEmptyState}
+        // Performance optimizations
+        removeClippedSubviews={true}
+        maxToRenderPerBatch={20}
+        updateCellsBatchingPeriod={50}
+        initialNumToRender={20}
+        windowSize={21}
       />
 
       <View style={styles.inputContainer}>

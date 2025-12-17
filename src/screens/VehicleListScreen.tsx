@@ -1,13 +1,16 @@
-import React from 'react';
+import React, {useCallback} from 'react';
 import {View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, ActivityIndicator} from 'react-native';
+import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 import {colors, spacing, typography, shadows} from '../constants/theme';
 import {VehicleListScreenProps} from '../navigation/types';
 import {useVehicles} from '../context/VehicleContext';
 import {VehicleCard} from '../components/vehicles/VehicleCard';
+import {VehicleCardSkeleton} from '../components/vehicles/VehicleCardSkeleton';
 
 export const VehicleListScreen: React.FC<VehicleListScreenProps> = ({navigation}) => {
   const {vehicles, loading, refreshVehicles} = useVehicles();
   const [refreshing, setRefreshing] = React.useState(false);
+  const insets = useSafeAreaInsets();
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -23,45 +26,60 @@ export const VehicleListScreen: React.FC<VehicleListScreenProps> = ({navigation}
     navigation.navigate('VehicleDetail', {vehicleId});
   };
 
-  if (loading && vehicles.length === 0) {
-    return (
-      <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={styles.loadingText}>Loading vehicles...</Text>
-      </View>
-    );
-  }
+  const renderVehicleItem = useCallback(({item}: {item: any}) => (
+    <VehicleCard vehicle={item} onPress={() => handleVehiclePress(item.id)} />
+  ), []);
 
   return (
-    <View style={styles.container}>
-      <FlatList
-        data={vehicles}
-        keyExtractor={item => item.id}
-        renderItem={({item}) => (
-          <VehicleCard vehicle={item} onPress={() => handleVehiclePress(item.id)} />
-        )}
-        ListHeaderComponent={
-          <Text style={styles.sectionTitle}>My Vehicles</Text>
-        }
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyTitle}>No vehicles yet</Text>
-            <Text style={styles.emptySubtitle}>
-              Tap the + button below to add your first vehicle
-            </Text>
-          </View>
-        }
-        contentContainerStyle={styles.listContent}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
-        }
-      />
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>My Vehicles</Text>
+        <Text style={styles.headerSubtitle}>{vehicles.length} {vehicles.length === 1 ? 'vehicle' : 'vehicles'}</Text>
+      </View>
+
+      {loading && vehicles.length === 0 ? (
+        <View style={[styles.listContent, {paddingBottom: insets.bottom + 120}]}>
+          <VehicleCardSkeleton />
+          <VehicleCardSkeleton />
+          <VehicleCardSkeleton />
+        </View>
+      ) : (
+        <FlatList
+          data={vehicles}
+          keyExtractor={item => item.id}
+          renderItem={renderVehicleItem}
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyTitle}>No vehicles yet</Text>
+              <Text style={styles.emptySubtitle}>
+                Tap the + button below to add your first vehicle
+              </Text>
+            </View>
+          }
+          contentContainerStyle={[
+            styles.listContent,
+            {paddingBottom: insets.bottom + 120}
+          ]}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
+          }
+          // Performance optimizations
+          removeClippedSubviews={true}
+          maxToRenderPerBatch={10}
+          updateCellsBatchingPeriod={50}
+          initialNumToRender={10}
+          windowSize={10}
+        />
+      )}
 
       {/* Floating Action Button */}
-      <TouchableOpacity style={styles.fab} onPress={handleAddVehicle} activeOpacity={0.8}>
+      <TouchableOpacity
+        style={[styles.fab, {bottom: insets.bottom + 100}]}
+        onPress={handleAddVehicle}
+        activeOpacity={0.8}>
         <Text style={styles.fabIcon}>+</Text>
       </TouchableOpacity>
-    </View>
+    </SafeAreaView>
   );
 };
 
@@ -81,18 +99,30 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSize.md,
     color: colors.textSecondary,
   },
-  listContent: {
-    padding: spacing.md,
-    paddingBottom: 120,
+  header: {
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.sm,
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderLight,
   },
-  sectionTitle: {
-    fontSize: typography.fontSize.lg,
+  headerTitle: {
+    fontSize: typography.fontSize.xxl,
     fontWeight: typography.fontWeight.bold,
     color: colors.text,
-    marginBottom: spacing.md,
+    marginBottom: spacing.xs,
+  },
+  headerSubtitle: {
+    fontSize: typography.fontSize.sm,
+    color: colors.textSecondary,
+    fontWeight: typography.fontWeight.medium,
+  },
+  listContent: {
+    padding: spacing.md,
   },
   emptyContainer: {
-    marginTop: spacing.xxl,
+    marginTop: spacing.xxl * 2,
     padding: spacing.lg,
     alignItems: 'center',
   },
@@ -106,11 +136,11 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSize.md,
     color: colors.textSecondary,
     textAlign: 'center',
+    lineHeight: 22,
   },
   fab: {
     position: 'absolute',
     right: spacing.lg,
-    bottom: 100,
     width: 64,
     height: 64,
     borderRadius: 32,
@@ -121,7 +151,7 @@ const styles = StyleSheet.create({
   },
   fabIcon: {
     fontSize: 40,
-    color: colors.surface,
+    color: colors.textLight,
     fontWeight: '600',
   },
 });
