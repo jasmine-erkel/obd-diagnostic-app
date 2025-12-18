@@ -2,11 +2,13 @@ import React, {useEffect, useState} from 'react';
 import {View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator} from 'react-native';
 import {colors, spacing, typography, borderRadius, shadows} from '../constants/theme';
 import {ProfileScreenProps} from '../navigation/types';
+import {useAuth} from '../context/AuthContext';
 import {useUser} from '../context/UserContext';
 import {useVehicles} from '../context/VehicleContext';
 
 export const ProfileScreen: React.FC<ProfileScreenProps> = () => {
-  const {profile, stats, loading, signOut, updateStats, initializeProfile} = useUser();
+  const {user, logout} = useAuth();
+  const {profile, stats, loading, updateStats, initializeProfile} = useUser();
   const {vehicles} = useVehicles();
   const [isSigningOut, setIsSigningOut] = useState(false);
 
@@ -45,12 +47,12 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = () => {
           style: 'destructive',
           onPress: async () => {
             setIsSigningOut(true);
-            const success = await signOut();
-            setIsSigningOut(false);
-            if (success) {
-              Alert.alert('Success', 'You have been signed out successfully.');
-            } else {
+            try {
+              await logout();
+              // Navigation will be handled automatically by auth state change
+            } catch (error) {
               Alert.alert('Error', 'Failed to sign out. Please try again.');
+              setIsSigningOut(false);
             }
           },
         },
@@ -88,6 +90,12 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = () => {
     return `${profile.firstName} ${profile.lastName}`;
   };
 
+  const getEmail = () => {
+    if (user?.email) return user.email;
+    if (profile?.email) return profile.email;
+    return 'user@email.com';
+  };
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       {/* Profile Header */}
@@ -96,7 +104,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = () => {
           <Text style={styles.avatarText}>{getInitials()}</Text>
         </View>
         <Text style={styles.profileName}>{getFullName()}</Text>
-        <Text style={styles.profileEmail}>{profile?.email || 'user@email.com'}</Text>
+        <Text style={styles.profileEmail}>{getEmail()}</Text>
       </View>
 
       {/* Stats Card */}

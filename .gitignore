@@ -107,3 +107,4 @@ src/config.local.ts
 # Local Xcode signing configuration (developer-specific)
 ios/Config/Debug.xcconfig
 ios/Config/Release.xcconfig
+.env

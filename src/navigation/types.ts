@@ -2,6 +2,13 @@ import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {BottomTabScreenProps} from '@react-navigation/bottom-tabs';
 import {CompositeScreenProps} from '@react-navigation/native';
 
+// Auth stack param list
+export type AuthStackParamList = {
+  Welcome: undefined;
+  Login: undefined;
+  Register: undefined;
+};
+
 // Tab navigator param list
 export type TabParamList = {
   VehiclesTab: undefined;
