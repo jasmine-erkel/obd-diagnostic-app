@@ -7,8 +7,19 @@ A mobile diagnostic tool built with React Native that connects to OBD-II adapter
 ### Vehicle Management
 - Full CRUD operations for managing a garage of vehicles
 - Stores make, model, year, VIN, nickname, color, and mileage
+- Vehicle photo capture and selection via camera or photo library
 - Form validation including 17-character VIN verification
 - Persistent local storage with AsyncStorage
+
+### Maintenance Records
+- Track service history per vehicle (oil changes, tire rotations, brake service, inspections, repairs, and more)
+- Log date, mileage, cost, service provider, and parts used for each record
+- 10 categorized maintenance types with full CRUD support
+
+### User Profiles
+- Local user account with profile details and avatar
+- Configurable settings for notifications and theme (light, dark, auto)
+- Dashboard stats tracking vehicle count, scan count, and issues resolved
 
 ### Live Diagnostics
 - Real-time display of engine parameters: RPM, speed, coolant temperature, engine load, throttle position, fuel level, intake air temperature, and MAF sensor readings
@@ -26,6 +37,7 @@ A mobile diagnostic tool built with React Native that connects to OBD-II adapter
 
 ### AI Assistant
 - Chat interface for asking diagnostic questions about error codes and vehicle issues
+- Vehicle-aware context -- select a vehicle so the AI can tailor responses to your specific make and model
 - Tap any DTC in the diagnostics view to get an AI-powered explanation
 - Persistent chat history across sessions
 - Ready to connect to OpenAI, Anthropic, or any compatible chat completion API
@@ -53,8 +65,9 @@ In addition to the HTTP simulator, the app includes a `MockOBDService` class (`s
 - **React Native** 0.83 with **React** 19
 - **TypeScript** for type safety across the entire codebase
 - **react-native-ble-plx** for Bluetooth Low Energy communication with OBD-II adapters
+- **react-native-image-picker** for vehicle photo capture
 - **React Navigation** -- bottom tab navigator with nested stack navigation
-- **Context API** for state management (Vehicle, OBD, AI contexts)
+- **Context API** for state management (Vehicle, OBD, AI, User contexts)
 - **AsyncStorage** for local data persistence
 - **Express.js** for the mock OBD-II server
 
@@ -63,8 +76,8 @@ In addition to the HTTP simulator, the app includes a `MockOBDService` class (`s
 ```
 src/
   components/
-    common/                 Button, Card, Input
-    vehicles/               VehicleCard
+    common/                 Button, Card, Input, ImagePicker, Skeleton
+    vehicles/               VehicleCard, VehicleCardSkeleton, VehicleSelector
   config.example.ts         API key configuration template
   constants/
     obdCodes.ts             OBD-II DTC definitions and lookup utilities
@@ -72,6 +85,7 @@ src/
   context/
     AIContext.tsx            AI chat state management
     OBDContext.tsx           OBD connection and live data state
+    UserContext.tsx          User profile and settings state
     VehicleContext.tsx       Vehicle garage state
   navigation/
     TabNavigator.tsx         Bottom tab navigation (Vehicles, Diagnostics, AI, Profile)
@@ -81,6 +95,7 @@ src/
     AddVehicleScreen.tsx
     AIAssistantScreen.tsx
     DiagnosticsScreen.tsx
+    MaintenanceRecordsScreen.tsx
     ProfileScreen.tsx
     VehicleDetailScreen.tsx
     VehicleListScreen.tsx
@@ -89,9 +104,12 @@ src/
     bluetoothService.ts     BLE communication with ELM327 OBD-II adapters
     mockOBDService.ts       In-app mock data generator for testing
     obdService.ts           HTTP client for the mock OBD-II server
+    userStorage.ts          User profile, stats, and settings persistence
     vehicleStorage.ts       Vehicle data persistence
   types/
     ai.ts                   AI chat models
+    maintenance.ts          Maintenance record and service type models
+    user.ts                 User profile, stats, and settings models
     vehicle.ts              Vehicle and DTC models
   utils/
     uuid.ts                 ID generation
