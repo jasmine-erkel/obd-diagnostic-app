@@ -1,97 +1,180 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+# OBD-II Diagnostic App
 
-# Getting Started
+A mobile diagnostic tool built with React Native that connects to OBD-II adapters over Bluetooth to read real-time vehicle data, display diagnostic trouble codes (DTCs), and provide AI-assisted troubleshooting. Includes a standalone vehicle simulator server and an in-app mock service for development and testing without physical hardware.
 
-> **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
+## Features
 
-## Step 1: Start Metro
+### Vehicle Management
+- Full CRUD operations for managing a garage of vehicles
+- Stores make, model, year, VIN, nickname, color, and mileage
+- Form validation including 17-character VIN verification
+- Persistent local storage with AsyncStorage
 
-First, you will need to run **Metro**, the JavaScript build tool for React Native.
+### Live Diagnostics
+- Real-time display of engine parameters: RPM, speed, coolant temperature, engine load, throttle position, fuel level, intake air temperature, and MAF sensor readings
+- Reads and displays active diagnostic trouble codes with severity classification (critical, warning, info)
+- Supports clearing DTCs through the OBD-II interface
+- 30+ built-in OBD-II code definitions spanning powertrain (P), body (B), chassis (C), and network (U) categories
 
-To start the Metro dev server, run the following command from the root of your React Native project:
+### Bluetooth OBD-II Communication
+- Connects to ELM327-compatible OBD-II adapters over Bluetooth Low Energy
+- Scans for and filters OBD-II devices by name (OBD, ELM, VLINK)
+- Sends standard OBD-II PID commands and parses hex responses into human-readable values
+- Full ELM327 initialization sequence (ATZ, ATE0, ATL0, ATS0, ATH1, ATSP0)
+- Handles Android Bluetooth permission requests (API 31+ and legacy)
+- Parses raw DTC hex responses into standard code format (P/C/B/U prefixes)
 
-```sh
-# Using npm
-npm start
+### AI Assistant
+- Chat interface for asking diagnostic questions about error codes and vehicle issues
+- Tap any DTC in the diagnostics view to get an AI-powered explanation
+- Persistent chat history across sessions
+- Ready to connect to OpenAI, Anthropic, or any compatible chat completion API
 
-# OR using Yarn
-yarn start
+### OBD-II Vehicle Simulator
+
+The project includes a standalone Express.js server (`mock-obd-server/`) that simulates an OBD-II device over HTTP. This allows full end-to-end development and testing of the app without requiring a physical OBD-II adapter or vehicle.
+
+The simulator provides:
+
+- **Realistic engine telemetry** -- RPM, speed, coolant temperature, engine load, throttle position, fuel level, intake air temperature, MAF, timing advance, and battery voltage all update at 100ms intervals with realistic variation
+- **Engine lifecycle simulation** -- start and stop the engine to toggle between idle/running data and zero-state readings, with coolant temperature that gradually warms up over time
+- **DTC management** -- ships with pre-loaded error codes (P0420, P0171), supports adding arbitrary codes for testing, and clearing all codes
+- **Connection state management** -- enforces a connect/disconnect lifecycle so the app can be tested against both connected and disconnected states
+- **Full REST API** with 9 endpoints mirroring real OBD-II adapter behavior
+
+See [`mock-obd-server/README.md`](mock-obd-server/README.md) for endpoint documentation and usage examples.
+
+### In-App Mock Service
+
+In addition to the HTTP simulator, the app includes a `MockOBDService` class (`src/services/mockOBDService.ts`) that generates realistic telemetry data directly in-app. This supports idle vs. driving simulation, gradual coolant warm-up and cool-down, fuel consumption modeling, and value clamping to realistic ranges. Useful for UI development when the mock server is not running.
+
+## Tech Stack
+
+- **React Native** 0.83 with **React** 19
+- **TypeScript** for type safety across the entire codebase
+- **react-native-ble-plx** for Bluetooth Low Energy communication with OBD-II adapters
+- **React Navigation** -- bottom tab navigator with nested stack navigation
+- **Context API** for state management (Vehicle, OBD, AI contexts)
+- **AsyncStorage** for local data persistence
+- **Express.js** for the mock OBD-II server
+
+## Project Structure
+
+```
+src/
+  components/
+    common/                 Button, Card, Input
+    vehicles/               VehicleCard
+  config.example.ts         API key configuration template
+  constants/
+    obdCodes.ts             OBD-II DTC definitions and lookup utilities
+    theme.ts                Colors, spacing, typography
+  context/
+    AIContext.tsx            AI chat state management
+    OBDContext.tsx           OBD connection and live data state
+    VehicleContext.tsx       Vehicle garage state
+  navigation/
+    TabNavigator.tsx         Bottom tab navigation (Vehicles, Diagnostics, AI, Profile)
+    VehiclesStackNavigator.tsx
+    types.ts                Navigation type definitions
+  screens/
+    AddVehicleScreen.tsx
+    AIAssistantScreen.tsx
+    DiagnosticsScreen.tsx
+    ProfileScreen.tsx
+    VehicleDetailScreen.tsx
+    VehicleListScreen.tsx
+  services/
+    aiService.ts            AI API integration (OpenAI/Anthropic-ready)
+    bluetoothService.ts     BLE communication with ELM327 OBD-II adapters
+    mockOBDService.ts       In-app mock data generator for testing
+    obdService.ts           HTTP client for the mock OBD-II server
+    vehicleStorage.ts       Vehicle data persistence
+  types/
+    ai.ts                   AI chat models
+    vehicle.ts              Vehicle and DTC models
+  utils/
+    uuid.ts                 ID generation
+    validation.ts           Form validation
+
+mock-obd-server/
+  server.js                 Express server simulating an OBD-II device
+  package.json
+  README.md
 ```
 
-## Step 2: Build and run your app
+## Getting Started
 
-With Metro running, open a new terminal window/pane from the root of your React Native project, and use one of the following commands to build and run your Android or iOS app:
+### Prerequisites
 
-### Android
+- Node.js >= 20
+- React Native development environment ([setup guide](https://reactnative.dev/docs/set-up-your-environment))
+- Xcode (for iOS) or Android Studio (for Android)
 
-```sh
-# Using npm
-npm run android
+### Installation
 
-# OR using Yarn
-yarn android
+```bash
+git clone <repository-url>
+cd obd-diagnostic-app
+npm install
 ```
 
-### iOS
-
-For iOS, remember to install CocoaPods dependencies (this only needs to be run on first clone or after updating native deps).
-
-The first time you create a new project, run the Ruby bundler to install CocoaPods itself:
-
-```sh
+For iOS:
+```bash
 bundle install
+cd ios && bundle exec pod install && cd ..
 ```
 
-Then, and every time you update your native dependencies, run:
+### Running the Vehicle Simulator
 
-```sh
-bundle exec pod install
+```bash
+cd mock-obd-server
+npm install
+npm start
 ```
 
-For more information, please visit [CocoaPods Getting Started guide](https://guides.cocoapods.org/using/getting-started.html).
+The server starts on `http://localhost:3001`. Update the server URL in `src/services/obdService.ts` with your machine's local IP address so the mobile app can reach it over the network.
 
-```sh
-# Using npm
+### Running the App
+
+Start the Metro bundler:
+```bash
+npm start
+```
+
+In a separate terminal:
+```bash
+# iOS
 npm run ios
 
-# OR using Yarn
-yarn ios
+# Android
+npm run android
 ```
 
-If everything is set up correctly, you should see your new app running in the Android Emulator, iOS Simulator, or your connected device.
+### Enabling AI Features
 
-This is one way to run your app — you can also build it directly from Android Studio or Xcode.
+The AI assistant works in mock mode by default. To connect a real AI backend:
 
-## Step 3: Modify your app
+1. Copy `src/config.example.ts` to `src/config.local.ts`
+2. Add your API key (the local config file is gitignored)
+3. Update the configuration in `src/services/aiService.ts`
 
-Now that you have successfully run the app, let's make changes!
+Compatible with any API that follows the OpenAI chat completions format.
 
-Open `App.tsx` in your text editor of choice and make some changes. When you save, your app will automatically update and reflect these changes — this is powered by [Fast Refresh](https://reactnative.dev/docs/fast-refresh).
+## Simulator API Reference
 
-When you want to forcefully reload, for example to reset the state of your app, you can perform a full reload:
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/connect` | Connect to the simulated OBD-II device |
+| GET | `/disconnect` | Disconnect from the device |
+| GET | `/status` | Get connection and engine state |
+| GET | `/live-data` | Get real-time vehicle telemetry |
+| GET | `/error-codes` | Get active diagnostic trouble codes |
+| POST | `/error-codes/clear` | Clear all stored DTCs |
+| POST | `/error-codes/add` | Add a DTC for testing (`{ "code": "P0301" }`) |
+| POST | `/engine/start` | Start the engine simulation |
+| POST | `/engine/stop` | Stop the engine simulation |
 
-- **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Dev Menu**, accessed via <kbd>Ctrl</kbd> + <kbd>M</kbd> (Windows/Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (macOS).
-- **iOS**: Press <kbd>R</kbd> in iOS Simulator.
+## License
 
-## Congratulations! :tada:
-
-You've successfully run and modified your React Native App. :partying_face:
-
-### Now what?
-
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [docs](https://reactnative.dev/docs/getting-started).
-
-# Troubleshooting
-
-If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
-
-# Learn More
-
-To learn more about React Native, take a look at the following resources:
-
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
+MIT
