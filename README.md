@@ -92,9 +92,9 @@ npm run ios     # or npm run android
 | POST | `/engine/start` | Start engine simulation |
 | POST | `/engine/stop` | Stop engine simulation |
 
-## My Role
+## Team
 
-Collaborative build with **Joshua Erkel** (roughly 50/50 commit split). I owned the Bluetooth service layer, OBD code parsing, AI assistant integration, and the mock simulator server. Shared work on navigation, contexts, and screen implementations.
+Co-developed with **Joshua Erkel**. Built across mobile (React Native + TypeScript), BLE integration with ELM327 adapters, an AI assistant layer, and a standalone Express-based vehicle simulator.
 
 ## License
 
